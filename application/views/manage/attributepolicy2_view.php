@@ -26,6 +26,11 @@ echo '<div id="attrpols" class="tabs-content row" data-tabs-content="attrpolstab
 <li>Experimental Attribute Release Policy for ShibbolethIDP ver 3.x - it does include rules based on Entity Categories: <br />
             <small>' . base_url('arp/format3exp/' . $encodedentity . '/arp.xml') . '</small> <a href="' . base_url('arp/format3exp/' . $encodedentity . '/arp.xml') . '"><i class="fa fa-link"></i></a>
             </li>
+
+            <li>Experimental Attribute Release Policy for ShibbolethIDP ver 5.x: <br />
+            <small>' . base_url('arp/format5exp/' . $encodedentity . '/arp.xml') . '</small> <a href="' . base_url('arp/format5exp/' . $encodedentity . '/arp.xml') . '"><i class="fa fa-link"></i></a>
+            </li>
+
             </ul>
         </section>
         <section class="tabs-panel row" id="attrpol-1">

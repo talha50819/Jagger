@@ -64,7 +64,10 @@ class Arp extends MY_Controller
             log_message('error', $e);
             return $this->output->set_content_type('text/html')->set_status_header(500)->set_output('Internal server error');
         }
-        if($version === 3){
+        if($version === 5){
+            $rxmldata =$this->arpgen->genXMLv5($ent);
+        }
+        else if($version === 3){
             $rxmldata =$this->arpgen->genXMLv3($ent);
 
         }
@@ -90,6 +93,11 @@ class Arp extends MY_Controller
     public function format3exp($encodedEntity, $filename = null) {
 
         $this->arpexperimental($encodedEntity, 3, $filename);
+    }
+
+    public function format5exp($encodedEntity, $filename = null) {
+
+        $this->arpexperimental($encodedEntity, 5, $filename);
     }
 
 
