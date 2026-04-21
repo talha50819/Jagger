@@ -142,6 +142,11 @@ class Disco extends MY_Controller
             return $this->output->set_status_header(403)->set_output($e->getMessage());
         }
 
+
+ 	$this->output->set_header('Cache-Control: public, max-age=3600');
+        $this->output->set_header('Pragma: ');
+        $this->output->set_header('Expires: ');
+
         $result = json_encode($result);
         $callback = $this->input->get('callback');
         if ($callback !== null && $this->isCallbackValid($callback)) {
@@ -244,6 +249,9 @@ class Disco extends MY_Controller
         }
 
         $result = $this->providerToDisco($ent, 'sp');
+	$this->output->set_header('Cache-Control: public, max-age=3600');
+        $this->output->set_header('Pragma: ');
+        $this->output->set_header('Expires: ');
         $output = json_encode($result);
         $callback = $this->input->get('callback');
         if ($callback !== null && $this->isCallbackValid($callback)) {
