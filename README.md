@@ -300,16 +300,16 @@ sudo apt install apache2
 
 2. Install packages required:
 
-   - Ubuntu 22.04
+   - Ubuntu
 
      - ```txt
-       apt install curl php php-common php8.1-opcache php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python-pip default-jdk gearman-job-server --no-install-recommends
+       apt install curl php php-common php8.5-opcache php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python-pip default-jdk gearman-job-server --no-install-recommends
        ```
 
-   - Debian 12:
+   - Debian:
 
      - ```txt
-       apt install curl php php-common php8.2-opcache php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python-pip default-jdk gearman-job-server --no-install-recommends
+       apt install curl php php-common php8.5-opcache php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python-pip default-jdk gearman-job-server --no-install-recommends
        ```
 
 2. Install Composer:
