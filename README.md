@@ -1,4 +1,3 @@
-```markdown
 # Jagger Federation Registry
 
 [Jagger](http://jagger.heanet.ie) is developed by HEAnet to manage the Edugate multiparty SAML federation. Other organisations use Jagger to manage their federations, but it can also be used to manage the web-of-trust for a single entity. Additionally, it can be used as a GUI for the Shibboleth SAML Identity Provider ([Shibboleth](https://www.shibboleth.net)).
