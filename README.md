@@ -532,7 +532,6 @@ Official administration documentation is available at:
 
 ## Authors & Thanks
 
-- **Original Author**: Muhammad Talha Siddiqui
-- **Special Thanks**: [@janul](https://github.com/janul) for contributions and support.
+- **Fork Author**: Muhammad Talha Siddiqui
 - **Project Repository**: [Edugate/Jagger](https://github.com/Edugate/Jagger)
 ```
