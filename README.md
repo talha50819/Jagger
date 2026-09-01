@@ -577,8 +577,8 @@ Take a look to my Pull Request on: https://github.com/Edugate/Jagger/pulls
             Header always set Strict-Transport-Security "max-age=63072000;includeSubDomains;preload"
          </IfModule>
          
-         SSLCertificateFile /etc/ssl/certs/jagger.example.org.crt
-         SSLCertificateKeyFile /etc/ssl/private/jagger.example.org.key
+         SSLCertificateFile /etc/ssl/certs/jagger.crt
+         SSLCertificateKeyFile /etc/ssl/private/jagger.key
          SSLCACertificateFile /etc/ssl/certs/ca-cert.pem
 
          Alias /rr3 /opt/rr3
