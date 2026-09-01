@@ -370,7 +370,7 @@ cd /opt/rr3/application
 
 ---
 
-## Code Fixes & PHP Compatibility
+## PHP Compatibility
 
 Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework and specific directory permissions to ensure a smooth deployment. This prevents deprecation warnings from corrupting HTTP headers.
 
