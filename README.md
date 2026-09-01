@@ -233,26 +233,25 @@ sudo apt install apache2
         echo '<h1>It Works!</h1>' > /var/www/html/$(hostname -f)/index.html
         ```
 
-    3. Generate SSL credentials:
-    
-        ```bash
-        mkdir -p /etc/ssl/private /etc/ssl/certs
-        
-        openssl req -new -x509 -newkey rsa:3072 -sha256 -days 365 \
-          -noenc \
-          -keyout /etc/ssl/private/$(hostname -f).key \
-          -out /etc/ssl/certs/$(hostname -f).crt \
-          -subj "/CN=$(hostname -f)" \
-          -addext "subjectAltName=DNS:$(hostname -f)"
-        
-        cp /etc/ssl/certs/$(hostname -f).crt /etc/ssl/certs/ca-cert.pem
-        
-        chmod 400 /etc/ssl/private/$(hostname -f).key
-        chmod 644 /etc/ssl/certs/$(hostname -f).crt
-        ```
-        
-        This automatically generates a self-signed RSA 3072-bit SSL certificate and private key using the server FQDN.
+3. Generate SSL credentials:
 
+    ```bash
+    mkdir -p /etc/ssl/private /etc/ssl/certs
+    
+    openssl req -new -x509 -newkey rsa:3072 -sha256 -days 365 \
+      -noenc \
+      -keyout /etc/ssl/private/$(hostname -f).key \
+      -out /etc/ssl/certs/$(hostname -f).crt \
+      -subj "/CN=$(hostname -f)" \
+      -addext "subjectAltName=DNS:$(hostname -f)"
+    
+    cp /etc/ssl/certs/$(hostname -f).crt /etc/ssl/certs/ca-cert.pem
+    
+    chmod 400 /etc/ssl/private/$(hostname -f).key
+    chmod 644 /etc/ssl/certs/$(hostname -f).crt
+    ```
+    
+    This automatically generates a **self-signed RSA 3072-bit SSL certificate**, private key, and CA certificate using the server's FQDN.
 
 
 4.  Configure the right privileges for the SSL Certificate and Private Key used by HTTPS:
