@@ -1,8 +1,9 @@
+```markdown
 # Jagger Federation Registry
 
 [Jagger](http://jagger.heanet.ie) is developed by HEAnet to manage the Edugate multiparty SAML federation. Other organisations use Jagger to manage their federations, but it can also be used to manage the web-of-trust for a single entity. Additionally, it can be used as a GUI for the Shibboleth SAML Identity Provider ([Shibboleth](https://www.shibboleth.net)).
 
-## Features
+## ✨ Features
 
 1. Synchronise SAML metadata from another federation.
 2. Create and manage a federation.
@@ -14,7 +15,7 @@
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
 1. [Requirements](#requirements)
 2. [Important Notes](#important-notes)
@@ -23,37 +24,42 @@
 5. [Install Dependencies](#install-dependencies)
 6. [Install MySQL Server](#install-mysql-server)
 7. [Install Apache Web Server](#install-apache-web-server)
-8. [Configure Apache Web Server](#configure-apache-web-server)
-9. [Install Jagger](#install-jagger)
-10. [Configure Jagger Database](#configure-jagger-database)
-11. [Configure Jagger](#configure-jagger)
-12. [Populate Database Tables](#populate-database-tables)
-13. [Code Fixes & PHP Compatibility](#code-fixes--php-compatibility)
-14. [Configure Apache Jagger VirtualHost](#configure-apache-jagger-virtualhost)
-15. [Setup Jagger Registry](#setup-jagger-registry)
-16. [Updating Jagger](#updating-jagger)
-17. [Documentation](#documentation)
-18. [Authors & Thanks](#authors--thanks)
+8. [Configure Apache Web Server (HTTP)](#configure-apache-web-server-http)
+9. [Install and Configure Let's Encrypt (HTTPS)](#install-and-configure-lets-encrypt-https)
+10. [Install PyFF (Metadata Processing)](#install-pyff-metadata-processing)
+11. [Install XMLSecTool (Metadata Validation)](#install-xmlsectool-metadata-validation)
+12. [Install Jagger](#install-jagger)
+13. [Configure Jagger Database](#configure-jagger-database)
+14. [Configure Jagger](#configure-jagger)
+15. [Populate Database Tables](#populate-database-tables)
+16. [PHP Compatibility & Code Fixes](#php-compatibility--code-fixes)
+17. [Finalize Apache Jagger VirtualHost](#finalize-apache-jagger-virtualhost)
+18. [Setup Jagger Registry](#setup-jagger-registry)
+19. [Updating Jagger](#updating-jagger)
+20. [Documentation](#documentation)
+21. [Authors & Thanks](#authors--thanks)
 
 ---
 
 ## Requirements
 
 ### Hardware
-- *CPU*: 4 Core (64-bit)
-- *RAM*: 8 GB
-- *HDD*: 50 GB
-- *OS*: Debian 13.* or Ubuntu 26.*
+- **CPU**: 4 Core (64-bit)
+- **RAM**: 8 GB
+- **HDD**: 50 GB
+- **OS**: Debian 13.* or Ubuntu 26.*
 
 ### Software
-- *Apache Web Server*: 2.4
-- *OpenSSL*: 3.5
-- *Shibboleth Service Provider*: 5 *(Optional)*
-- *PHP*: 8.5
+- **Apache Web Server**: 2.4
+- **OpenSSL**: 3.5
+- **PHP**: 8.5
+- **Java**: Default JDK (Required for XMLSecTool)
+- **Python**: 3.x with `venv` and `pip` (Required for PyFF)
+- **Shibboleth Service Provider**: 5 *(Optional)*
 
 ### Others
-- *SSL Credentials*: HTTPS Certificate & Private Key
-- *Logo*: 
+- **Domain**: A Fully Qualified Domain Name (FQDN) with public DNS resolution pointing to this server.
+- **Logo**: 
   - Size: 350px wide × 64px high (or 146px wide × 64px high)
   - Format: PNG
   - Style: Transparent background
@@ -77,7 +83,7 @@
    sudo su -
    ```
 2. Ensure your firewall **is not blocking** traffic on ports **443** and **80** for the Jagger server.
-3. Set the SP hostname:
+3. Set the server hostname:
    > [!CAUTION]
    > Replace `jagger.example.org` with your SP FQDN and `<HOSTNAME>` with the Jagger server hostname.
    ```bash
@@ -142,7 +148,7 @@
 ## Install Dependencies
 
 ```bash
-sudo apt install fail2ban nano wget ca-certificates openssl ntpsec git --no-install-recommends
+sudo apt install fail2ban nano wget ca-certificates openssl ntpsec git unzip --no-install-recommends
 ```
 
 ---
@@ -178,15 +184,13 @@ sudo mysql_secure_installation
 
 ## Install Apache Web Server
 
-The Apache HTTP Server will be configured for SSL offloading.
-
 ```bash
 sudo apt install apache2
 ```
 
 ---
 
-## Configure Apache Web Server
+## Configure Apache Web Server (HTTP)
 
 1. Become `root`:
    ```bash
@@ -196,33 +200,101 @@ sudo apt install apache2
    ```bash
    mkdir -p /var/www/html/$(hostname -f)
    chown -R www-data:www-data /var/www/html/$(hostname -f)
-   echo '<h1>It Works!</h1>' > /var/www/html/$(hostname -f)/index.html
+   echo '<h1>It Works! Ready for Let\'s Encrypt.</h1>' > /var/www/html/$(hostname -f)/index.html
    ```
-3. Generate SSL credentials (Self-signed RSA 3072-bit):
+3. Enable required Apache modules:
    ```bash
-   mkdir -p /etc/ssl/private /etc/ssl/certs
-   
-   openssl req -new -x509 -newkey rsa:3072 -sha256 -days 365 \
-     -noenc \
-     -keyout /etc/ssl/private/$(hostname -f).key \
-     -out /etc/ssl/certs/$(hostname -f).crt \
-     -subj "/CN=$(hostname -f)" \
-     -addext "subjectAltName=DNS:$(hostname -f)"
-   
-   cp /etc/ssl/certs/$(hostname -f).crt /etc/ssl/certs/ca-cert.pem
-   chmod 400 /etc/ssl/private/$(hostname -f).key
-   chmod 644 /etc/ssl/certs/$(hostname -f).crt
-   ```
-4. Verify that the SSL certificate file matches the CA certificate file:
-   ```bash
-   openssl verify --CAfile /etc/ssl/certs/ca-cert.pem /etc/ssl/certs/$(hostname -f).crt
-   ```
-   *(Ensure the output is `OK`)*
-5. Enable required Apache modules and disable default sites:
-   ```bash
-   a2enmod ssl rewrite headers alias include negotiation
+   a2enmod ssl rewrite headers alias include negotiation socache_shmcb
    a2dissite 000-default.conf default-ssl
    systemctl restart apache2.service
+   ```
+
+---
+
+## Install and Configure Let's Encrypt (HTTPS)
+
+> [!TIP]
+> Using Let's Encrypt is the recommended, production-ready approach for obtaining trusted SSL certificates.
+
+1. Install Certbot and the Apache plugin:
+   ```bash
+   sudo apt install certbot python3-certbot-apache
+   ```
+2. Obtain and install the certificate:
+   > [!CAUTION]
+   > Ensure `jagger.example.org` resolves to this server's public IP before running this command.
+   ```bash
+   sudo certbot --apache -d jagger.example.org
+   ```
+   - Follow the prompts (choose to redirect HTTP traffic to HTTPS).
+3. Certbot will automatically create an SSL virtual host file at `/etc/apache2/sites-available/$(hostname -f)-le-ssl.conf`. We will configure this file with Jagger-specific rules in a later step.
+4. Verify auto-renewal:
+   ```bash
+   sudo certbot renew --dry-run
+   ```
+
+---
+
+## Install PyFF (Metadata Processing)
+
+[PyFF](https://github.com/IdentityPython/pyFF) is the Python Federation Framework, used for advanced SAML metadata filtering, signing, and publishing.
+
+1. Install build dependencies for PyFF:
+   ```bash
+   sudo apt install python3-venv python3-pip libxml2-dev libxslt1-dev pkg-config
+   ```
+2. Create a dedicated directory and virtual environment:
+   ```bash
+   sudo mkdir -p /opt/pyff
+   sudo chown $USER:$USER /opt/pyff
+   python3 -m venv /opt/pyff/venv
+   ```
+3. Activate the environment and install PyFF:
+   ```bash
+   source /opt/pyff/venv/bin/activate
+   pip install --upgrade pip
+   pip install pyff
+   ```
+4. Create a global symlink for easy access:
+   ```bash
+   sudo ln -s /opt/pyff/venv/bin/pyff /usr/local/bin/pyff
+   sudo ln -s /opt/pyff/venv/bin/buidl /usr/local/bin/buidl
+   ```
+
+---
+
+## Install XMLSecTool (Metadata Validation)
+
+[XMLSecTool](https://github.com/litsec/xmlsectool) is a command-line Java utility for checking the XML signature and/or XML encryption of a SAML metadata file, and validating it against an XML Schema.
+
+1. Create the installation directory:
+   ```bash
+   sudo mkdir -p /opt/xmlsectool
+   cd /opt/xmlsectool
+   ```
+2. Download the latest stable release (e.g., 3.0.0):
+   ```bash
+   sudo wget https://github.com/litsec/xmlsectool/releases/download/3.0.0/xmlsectool-3.0.0-bin.zip
+   sudo unzip xmlsectool-3.0.0-bin.zip
+   sudo rm xmlsectool-3.0.0-bin.zip
+   sudo chown -R root:root /opt/xmlsectool
+   ```
+3. Create a wrapper script for global execution:
+   ```bash
+   sudo nano /usr/local/bin/xmlsectool
+   ```
+   Add the following content:
+   ```bash
+   #!/bin/bash
+   java -jar /opt/xmlsectool/xmlsectool-3.0.0/xmlsectool.jar "$@"
+   ```
+4. Make the script executable:
+   ```bash
+   sudo chmod +x /usr/local/bin/xmlsectool
+   ```
+5. Verify installation:
+   ```bash
+   xmlsectool --help
    ```
 
 ---
@@ -233,7 +305,7 @@ sudo apt install apache2
    ```bash
    sudo su -
    ```
-2. Install required packages:
+2. Install required PHP and Java packages:
    ```bash
    apt install -y curl php php-common php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python3-pip default-jdk gearman-job-server --no-install-recommends
    ```
@@ -284,12 +356,14 @@ sudo apt install apache2
 mysql -u root
 ```
 ```sql
-CREATE DATABASE rr3 CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE DATABASE rr3 CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 CREATE USER 'rr3user'@'localhost' IDENTIFIED BY 'rr3pass';
 GRANT ALL PRIVILEGES ON rr3.* TO 'rr3user'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
 ```
+> [!NOTE]
+> `utf8mb4` is recommended over `utf8` for full Unicode support in modern MySQL/MariaDB.
 
 ---
 
@@ -309,7 +383,7 @@ cd /opt/rr3/application/config
 cp config-default.php config.php
 ```
 Generate key via: 
-```
+```bash
 openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
 ```
 Edit `config.php`:
@@ -318,22 +392,22 @@ $config['base_url'] = 'https://jagger.example.org/rr3';
 $config['index_page'] = '';
 $config['log_threshold'] = 1;
 $config['log_path'] = '/var/log/rr3/';
-$config['encryption_key'] = '<ENCRYPTION-KEY>'; //Generated key
+$config['encryption_key'] = '<ENCRYPTION-KEY>'; // Paste generated key here
 ```
 
 ### 2. `config_rr.php`
 ```bash
 cp config_rr-default.php config_rr.php
 ```
-Generate key via: 
-```
+Generate syncpass key via: 
+```bash
 openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
 ```
 Edit `config_rr.php`:
 ```php
 $config['rr_setup_allowed'] = TRUE; // MUST be set to FALSE after Jagger setup
 $config['site_logo'] = 'logo-default.png'; // Store file in /opt/rr3/images/
-$config['syncpass'] = '<SYNCPASS>'; //Generated key
+$config['syncpass'] = '<SYNCPASS>'; // Paste generated key here
 $config['Shib_required'] = array('Shib_mail','Shib_username');
 $config['gearman'] = TRUE;
 // NOTE: Remove $config['nameids'] and all its content entirely.
@@ -370,9 +444,9 @@ cd /opt/rr3/application
 
 ---
 
-## PHP Compatibility
+## PHP Compatibility & Code Fixes
 
-Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework and specific directory permissions to ensure a smooth deployment. This prevents deprecation warnings from corrupting HTTP headers.
+Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework to prevent deprecation warnings from corrupting HTTP headers.
 
 ### 1. Update CodeIgniter Exception Levels
 PHP 8.4 deprecated the `E_STRICT` constant. Remove it to prevent initialization errors.
@@ -396,7 +470,7 @@ PHP 8.4 deprecated the `E_STRICT` constant. Remove it to prevent initialization 
   ```
 
 ### 2. Set Environment to Production
-PHP 8.2+ deprecated dynamic properties. Setting the environment to `production` ensures non-fatal deprecation notices are logged internally rather than output to the browser (preventing "Headers already sent" errors).
+PHP 8.2+ deprecated dynamic properties. Setting the environment to `production` ensures non-fatal deprecation notices are logged internally rather than output to the browser.
 - Open `/opt/rr3/index.php`
 - Update the `ENVIRONMENT` definition (around line 50-60):
   ```php
@@ -413,79 +487,66 @@ Strict server security policies (e.g., SELinux, AppArmor) often block JIT memory
 
 ---
 
-## Configure Apache Jagger VirtualHost
+## Finalize Apache Jagger VirtualHost
+
+Since Let's Encrypt generated the SSL virtual host, we must inject the Jagger-specific rules into it.
 
 1. Become `root`:
    ```bash
    sudo su -
    ```
-2. Create the VirtualHost file:
+2. Edit the Let's Encrypt SSL configuration file:
    ```bash
-   nano /etc/apache2/sites-available/$(hostname -f).conf
+   nano /etc/apache2/sites-available/$(hostname -f)-le-ssl.conf
    ```
-3. Paste the following configuration (remember to replace `jagger.example.org` and email paths):
+3. Update the file to match the following structure (ensure `jagger.example.org` is replaced):
 
    ```apache
-   # Jagger Federation Registry Apache2 Configuration
-   # Adjust "jagger.example.org", "ServerAdmin", log paths, and SSL file paths as needed.
-
-   SSLUseStapling on
-   SSLStaplingResponderTimeout 5
-   SSLStaplingReturnResponderErrors off
-   SSLStaplingCache shmcb:/var/run/ocsp(128000)
-
-   <VirtualHost *:80>
-      ServerName "jagger.example.org"
-      RedirectMatch permanent ^/$ /rr3
-   </VirtualHost>
-
    <IfModule mod_ssl.c>
-      <VirtualHost _default_:443>
-        ServerName jagger.example.org:443
-        ServerAdmin admin@example.org
-        RedirectMatch permanent ^/$ /rr3
+   <VirtualHost *:443>
+     ServerName jagger.example.org
+     ServerAdmin admin@example.org
+     
+     CustomLog /var/log/apache2/jagger.example.org-access.log combined
+     ErrorLog /var/log/apache2/jagger.example.org-error.log
+     
+     DocumentRoot /var/www/html/jagger.example.org
+     
+     # Let's Encrypt managed certificates (DO NOT MODIFY THESE 3 LINES)
+     SSLCertificateFile /etc/letsencrypt/live/jagger.example.org/fullchain.pem
+     SSLCertificateKeyFile /etc/letsencrypt/live/jagger.example.org/privkey.pem
+     Include /etc/letsencrypt/options-ssl-apache.conf
 
-        CustomLog /var/log/apache2/jagger.example.org.log combined
-        ErrorLog /var/log/apache2/jagger.example.org-error.log
-        
-        DocumentRoot /var/www/html/jagger.example.org
-        
-        SSLEngine On
-        SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1
-        SSLCipherSuite "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS !RC4"
-        SSLHonorCipherOrder on
-        
-        <IfModule headers_module>
-           Header set X-Frame-Options DENY
-           Header always set Strict-Transport-Security "max-age=63072000;includeSubDomains;preload"
-        </IfModule>
-        
-        SSLCertificateFile /etc/ssl/certs/$(hostname -f).crt
-        SSLCertificateKeyFile /etc/ssl/private/$(hostname -f).key
-        SSLCACertificateFile /etc/ssl/certs/ca-cert.pem
+     # Jagger Specific Security Headers
+     <IfModule headers_module>
+        Header set X-Frame-Options DENY
+        Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+     </IfModule>
 
-        Alias /rr3 /opt/rr3
-        <Directory /opt/rr3>
-           Require all granted
-           RewriteEngine On
-           RewriteBase /rr3
-           RewriteCond $1 !^(Shibboleth\.sso|index\.php|logos|signedmetadata|flags|images|app|schemas|fonts|styles|js|robots\.txt|pub|includes)
-           RewriteRule ^(.*)$ /rr3/index.php?/$1 [L]
-        </Directory>
-        
-        <Directory /opt/rr3/application>
-           Require all denied
-        </Directory>
-      </VirtualHost>
+     # Jagger Application Routing
+     Alias /rr3 /opt/rr3
+     <Directory /opt/rr3>
+        Require all granted
+        RewriteEngine On
+        RewriteBase /rr3
+        RewriteCond $1 !^(Shibboleth\.sso|index\.php|logos|signedmetadata|flags|images|app|schemas|fonts|styles|js|robots\.txt|pub|includes)
+        RewriteRule ^(.*)$ /rr3/index.php?/$1 [L]
+     </Directory>
+     
+     # Protect application directory
+     <Directory /opt/rr3/application>
+        Require all denied
+     </Directory>
+
+   </VirtualHost>
    </IfModule>
    ```
-4. Enable the site and restart Apache:
+4. Test configuration and restart Apache:
    ```bash
-   a2ensite $(hostname -f).conf
    apache2ctl configtest
    systemctl restart apache2.service
    ```
-5. Verify the web application loads at: `https://jagger.example.org`
+5. Verify the web application loads securely at: `https://jagger.example.org/rr3`
 6. Verify your SSL configuration strength at [SSL Labs](https://www.ssllabs.com/ssltest/analyze.html).
 
 ---
@@ -493,7 +554,7 @@ Strict server security policies (e.g., SELinux, AppArmor) often block JIT memory
 ## Setup Jagger Registry
 
 1. Navigate to: `https://jagger.example.org/rr3/setup`
-2. Create the Admin user.
+2. Create the initial Admin user.
 3. **Crucial Security Step**: Edit `/opt/rr3/application/config/config_rr.php` and change:
    ```php
    $config['rr_setup_allowed'] = FALSE;
@@ -518,7 +579,7 @@ Strict server security policies (e.g., SELinux, AppArmor) often block JIT memory
    ./doctrine orm:generate-proxies
    ```
 3. Sign in to the application and trigger the upgrade routine by visiting:
-   `http://yoursite/update/upgrade`
+   `https://jagger.example.org/rr3/update/upgrade`
 4. Always compare your local `/opt/rr3/index.php` with CodeIgniter's default `index.php` and update the local one if necessary.
 
 ---
@@ -532,5 +593,7 @@ Official administration documentation is available at:
 
 ## Authors & Thanks
 
-- **Fork Author**: Muhammad Talha Siddiqui
+- **Fork/Guide Author**: Muhammad Talha Siddiqui
 - **Project Repository**: [Edugate/Jagger](https://github.com/Edugate/Jagger)
+- **Special Thanks**: [@janul](https://github.com/janul) and the HEAnet/Edugate community for their ongoing support and development.
+```
