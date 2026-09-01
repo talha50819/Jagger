@@ -43,22 +43,22 @@
 ## Requirements
 
 ### Hardware
-- *CPU*: 4 Core (64-bit)
-- *RAM*: 8 GB
-- *HDD*: 50 GB
-- *OS*: Debian 13.* or Ubuntu 26.*
+- **CPU**: 4 Core (64-bit)
+- **RAM**: 8 GB
+- **HDD**: 50 GB
+- **OS**: Debian 13.* or Ubuntu 24.04 LTS / 26.04 LTS
 
 ### Software
-- *Apache Web Server*: 2.4
-- *OpenSSL*: 3.5
-- *PHP*: 8.5
-- *Java*: Default JDK (Required for XMLSecTool)
-- *Python*: 3.x with `venv` and `pip` (Required for PyFF)
-- *Shibboleth Service Provider*: 5 *(Optional)*
+- **Apache Web Server**: 2.4
+- **OpenSSL**: 3.5
+- **PHP**: 8.4 / 8.5
+- **Java**: Default JDK (Required for XMLSecTool)
+- **Python**: 3.x with `venv` and `pip` (Required for PyFF)
+- **Shibboleth Service Provider**: 5 *(Optional)*
 
 ### Others
-- *Domain*: A Fully Qualified Domain Name (FQDN) with public DNS resolution pointing to this server.
-- *Logo*: 
+- **Domain**: A Fully Qualified Domain Name (FQDN) with public DNS resolution pointing to this server.
+- **Logo**: 
   - Size: 350px wide × 64px high (or 146px wide × 64px high)
   - Format: PNG
   - Style: Transparent background
@@ -204,9 +204,10 @@ sudo apt install apache2
 3. Enable required Apache modules:
    ```bash
    a2enmod ssl rewrite headers alias include negotiation socache_shmcb
-   a2dissite 000-default.conf default-ssl
    systemctl restart apache2.service
    ```
+   > [!NOTE]
+   > We intentionally leave `000-default.conf` enabled for now. This ensures Certbot can successfully locate a vhost to validate the ACME HTTP-01 challenge in the next step.
 
 ---
 
@@ -245,7 +246,7 @@ sudo apt install apache2
 2. Create a dedicated directory and virtual environment:
    ```bash
    sudo mkdir -p /opt/pyff
-   sudo chown $USER:$USER /opt/pyff
+   sudo chown root:root /opt/pyff
    python3 -m venv /opt/pyff/venv
    ```
 3. Activate the environment and install PyFF:
@@ -254,7 +255,7 @@ sudo apt install apache2
    pip install --upgrade pip
    pip install pyff
    ```
-4. Create a global symlink for easy access:
+4. Create global symlinks for easy access:
    ```bash
    sudo ln -s /opt/pyff/venv/bin/pyff /usr/local/bin/pyff
    sudo ln -s /opt/pyff/venv/bin/buidl /usr/local/bin/buidl
@@ -264,16 +265,16 @@ sudo apt install apache2
 
 ## Install XMLSecTool (Metadata Validation)
 
-[XMLSecTool](https://github.com/litsec/xmlsectool) is a command-line Java utility for checking the XML signature and/or XML encryption of a SAML metadata file, and validating it against an XML Schema.
+[XMLSecTool](https://shibboleth.atlassian.net/wiki/spaces/XSTJ3) is a command-line Java utility for checking the XML signature and/or XML encryption of a SAML metadata file, and validating it against an XML Schema.
 
 1. Create the installation directory:
    ```bash
    sudo mkdir -p /opt/xmlsectool
    cd /opt/xmlsectool
    ```
-2. Download the latest stable release:
+2. Download the latest stable release (4.0.0) from the official Shibboleth distribution:
    ```bash
-   sudo wget https://github.com/litsec/xmlsectool/releases/download/4.0.0/xmlsectool-4.0.0-bin.zip
+   sudo wget https://shibboleth.net/downloads/tools/xmlsectool/4.0.0/xmlsectool-4.0.0-bin.zip
    sudo unzip xmlsectool-4.0.0-bin.zip
    sudo rm xmlsectool-4.0.0-bin.zip
    sudo chown -R root:root /opt/xmlsectool
@@ -305,8 +306,10 @@ sudo apt install apache2
    sudo su -
    ```
 2. Install required PHP and Java packages:
+   > [!NOTE]
+   > `php-xmlrpc` has been intentionally omitted as it was permanently removed in PHP 8.0+.
    ```bash
-   apt install -y curl php php-common php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python3-pip default-jdk gearman-job-server --no-install-recommends
+   apt install -y curl php php-common php-gd php-curl php-mysql php-intl php-xml php-mbstring php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached default-jdk gearman-job-server --no-install-recommends
    ```
 3. Install Composer:
    ```bash
@@ -331,8 +334,8 @@ sudo apt install apache2
    ```
 6. Install required third-party libraries:
    - Edit `/opt/rr3/application/composer.json`:
-     - Replace `"mtdowling/cron-expression": "1.1.*"` with `"dragonmantank/cron-expression": "3.*"`
-     - Update `"laminas/laminas-permissions-acl"` version to `"2.18.0"`
+     - Replace `"mtdowling/cron-expression": "1.1.*"` with `"dragonmantank/cron-expression": "^3.0"`
+     - Update `"laminas/laminas-permissions-acl"` version to `"^2.18.0"`
    - Run composer:
      ```bash
      cd /opt/rr3/application
@@ -362,7 +365,7 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 > [!NOTE]
-> `utf8mb4` is recommended over `utf8` for full Unicode support in modern MySQL/MariaDB.
+> `utf8mb4` is strictly recommended over `utf8` for full Unicode/emoji support in modern MySQL/MariaDB.
 
 ---
 
@@ -409,7 +412,7 @@ $config['site_logo'] = 'logo-default.png'; // Store file in /opt/rr3/images/
 $config['syncpass'] = '<SYNCPASS>'; // Paste generated key here
 $config['Shib_required'] = array('Shib_mail','Shib_username');
 $config['gearman'] = TRUE;
-// NOTE: Remove $config['nameids'] and all its content entirely.
+// NOTE: Remove $config['nameids'] and all its content entirely to prevent PHP 8.x errors.
 ```
 
 ### 3. `database.php`
@@ -478,11 +481,12 @@ PHP 8.2+ deprecated dynamic properties. Setting the environment to `production` 
 
 ### 3. Disable PCRE JIT (Recommended for Secure Environments)
 Strict server security policies (e.g., SELinux, AppArmor) often block JIT memory allocation, causing `preg_replace()` warnings.
-- Open your active PHP configuration files (e.g., `/etc/php/8.5/apache2/php.ini` and `/etc/php/8.5/cli/php.ini`)
+- Open your active PHP configuration files (e.g., `/etc/php/8.4/apache2/php.ini` and `/etc/php/8.4/cli/php.ini`)
 - Search for `pcre.jit` and set:
   ```ini
   pcre.jit=0
   ```
+- Restart Apache: `systemctl restart apache2.service`
 
 ---
 
@@ -592,7 +596,7 @@ Official administration documentation is available at:
 
 ## Authors & Thanks
 
-- **Fork/Guide Author**: Muhammad Talha Siddiqui
+- **Guide Author**: Muhammad Talha Siddiqui
 - **Project Repository**: [Edugate/Jagger](https://github.com/Edugate/Jagger)
 - **Special Thanks**: [@janul](https://github.com/janul) and the HEAnet/Edugate community for their ongoing support and development.
-```
+``` 
