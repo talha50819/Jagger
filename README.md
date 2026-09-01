@@ -126,12 +126,12 @@ Example with the Consortium GARR italian mirrors:
         bash -c 'cat > /etc/apt/sources.list.d/garr.sources <<EOF
         Types: deb deb-src
         URIs: https://debian.mirror.garr.it/debian/
-        Suites: bookworm bookworm-updates bookworm-backports
+        Suites: trixie trixie-updates trixie-backports
         Components: main
-
+        
         Types: deb deb-src
         URIs: https://debian.mirror.garr.it/debian-security/
-        Suites: bookworm-security
+        Suites: trixie-security
         Components: main
         EOF'
         ```
@@ -139,9 +139,16 @@ Example with the Consortium GARR italian mirrors:
     -   Ubuntu:
 
         ``` text
-        bash -c 'cat > /etc/apt/sources.list.d/garr.list <<EOF
-        deb https://ubuntu.mirror.garr.it/ubuntu/ jammy main
-        deb-src https://ubuntu.mirror.garr.it/ubuntu/ jammy main
+        bash -c 'cat > /etc/apt/sources.list.d/garr.sources <<EOF
+        Types: deb deb-src
+        URIs: https://ubuntu.mirror.garr.it/ubuntu/
+        Suites: resolute resolute-updates resolute-backports
+        Components: main
+        
+        Types: deb deb-src
+        URIs: https://ubuntu.mirror.garr.it/ubuntu/
+        Suites: resolute-security
+        Components: main
         EOF'
         ```
 
