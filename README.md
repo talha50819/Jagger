@@ -599,7 +599,81 @@ Take a look to my Pull Request on: https://github.com/Edugate/Jagger/pulls
     </IfModule>
     ```
 
-4. Enable the Apache2 SP Virtualhosts created:
+Here is the content rewritten as a proactive, standard **Configuration Step** for your deployment documentation (e.g., to be added to your `README.md`, `INSTALL.md`, or `DEPLOYMENT.md`).
+
+***
+
+Step 4: Configure PHP Compatibility and Directory Permissions
+
+Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework and specific directory permissions to ensure a smooth deployment. This prevents deprecation warnings from corrupting HTTP headers and ensures the application can write logs correctly.
+
+    1. Set Required Directory Permissions
+    Ensure the web server user (`www-data`) has ownership and write access to the required logging and proxy directories.
+    
+    ```bash
+    # Create required log directories
+    sudo mkdir -p /var/log/rr3
+    sudo mkdir -p /opt/rr3/application/logs
+    
+    # Assign ownership to the web server user
+    sudo chown -R www-data:www-data /var/log/rr3
+    sudo chown -R www-data:www-data /opt/rr3/application/logs
+    sudo chown -R www-data:www-data /opt/rr3/application/models/Proxies
+    
+    # Set correct directory permissions
+    sudo chmod -R 755 /var/log/rr3
+    sudo chmod -R 755 /opt/rr3/application/logs
+    ```
+    
+    #### 2. Update CodeIgniter Exception Levels
+    PHP 8.4 deprecated the `E_STRICT` constant. Remove it from the CodeIgniter core to prevent initialization errors.
+    
+    1. Open `/opt/codeigniter/system/core/Exceptions.php`
+    2. Locate the `$levels` array (around line 58).
+    3. Remove the `E_STRICT` entry so the array looks like this:
+    
+    ```php
+    public $levels = array(
+        E_ERROR         => 'Error',
+        E_WARNING       => 'Warning',
+        E_PARSE         => 'Parsing Error',
+        E_NOTICE        => 'Notice',
+        E_CORE_ERROR    => 'Core Error',
+        E_CORE_WARNING  => 'Core Warning',
+        E_COMPILE_ERROR => 'Compile Error',
+        E_COMPILE_WARNING => 'Compile Warning',
+        E_USER_ERROR    => 'User Error',
+        E_USER_WARNING  => 'User Warning',
+        E_USER_NOTICE   => 'User Notice'
+        // Note: E_STRICT intentionally omitted for PHP 8.4+ compatibility
+    );
+    ```
+    
+    3. Set Environment to Production
+    PHP 8.2+ deprecated dynamic properties. Setting the environment to `production` ensures these non-fatal deprecation notices are logged internally rather than output to the browser, which prevents "Headers already sent" errors during session initialization.
+    
+    1. Open `/opt/rr3/index.php`
+    2. Locate the `ENVIRONMENT` definition (around line 50-60).
+    3. Update the default fallback value to `'production'`:
+    
+    ```php
+    // Update the default environment fallback
+    define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'production');
+    ```
+    *(Note: Internal logging can still be enabled via `$config['log_threshold']` in `application/config/config.php` without displaying errors on the screen).*
+    
+    4. Disable PCRE JIT (Recommended for Secure Environments)
+    Strict server security policies (e.g., SELinux, AppArmor, or hardened hosting) often block JIT memory allocation, causing `preg_replace()` warnings. Disable it at the PHP level.
+    
+    1. Open your active PHP configuration files (both Apache and CLI, e.g., `/etc/php/8.4/apache2/php.ini` and `/etc/php/8.4/cli/php.ini`).
+    2. Search for `pcre.jit`.
+    3. Set the value to `0`:
+       ```ini
+       pcre.jit=0
+       ```
+
+
+5. Enable the Apache2 SP Virtualhosts created:
 
     -   ``` text
         a2ensite $(hostname -f).conf
@@ -611,13 +685,13 @@ Take a look to my Pull Request on: https://github.com/Edugate/Jagger/pulls
         systemctl restart apache2.service
         ```
 
-5.  Check that Jagger web application works on:
+6.  Check that Jagger web application works on:
 
     ``` text
     https://jagger.example.org
     ```
 
-6.  Verify the strength of your SP's machine on [SSLLabs](https://www.ssllabs.com/ssltest/analyze.html).
+7.  Verify the strength of your SP's machine on [SSLLabs](https://www.ssllabs.com/ssltest/analyze.html).
 
 [TOC](#table-of-contents)
 
