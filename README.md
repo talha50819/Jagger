@@ -233,15 +233,26 @@ sudo apt install apache2
         echo '<h1>It Works!</h1>' > /var/www/html/$(hostname -f)/index.html
         ```
 
-3.  Put SSL credentials in the right place:
+### 3. Generate SSL credentials:
 
-    > According to [NSA and NIST](https://www.keylength.com/en/compare/), RSA with 3072 bit-modulus is the minimum to protect up to TOP SECRET over than 2030.
+```bash
+mkdir -p /etc/ssl/private /etc/ssl/certs
 
-    -   HTTPS Server Certificate (Public Key) inside `/etc/ssl/certs/$(hostname -f).crt`
+openssl req -new -x509 -newkey rsa:3072 -sha256 -days 365 \
+  -noenc \
+  -keyout /etc/ssl/private/$(hostname -f).key \
+  -out /etc/ssl/certs/$(hostname -f).crt \
+  -subj "/CN=$(hostname -f)" \
+  -addext "subjectAltName=DNS:$(hostname -f)"
 
-    -   HTTPS Server Key (Private Key) inside `/etc/ssl/private/$(hostname -f).key`
+cp /etc/ssl/certs/$(hostname -f).crt /etc/ssl/certs/ca-cert.pem
 
-    -   Add CA Cert into `/etc/ssl/certs/ca-cert.pem`
+chmod 400 /etc/ssl/private/$(hostname -f).key
+chmod 644 /etc/ssl/certs/$(hostname -f).crt
+```
+
+This automatically generates a self-signed RSA 3072-bit SSL certificate and private key using the server FQDN.
+
 
 4.  Configure the right privileges for the SSL Certificate and Private Key used by HTTPS:
 
