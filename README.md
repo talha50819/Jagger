@@ -303,13 +303,13 @@ sudo apt install apache2
    - Ubuntu
 
      - ```txt
-       apt install curl php php-common php8.5-opcache php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python-pip default-jdk gearman-job-server --no-install-recommends
+       apt install -y curl php php-common php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python3-pip default-jdk gearman-job-server --no-install-recommends
        ```
 
    - Debian:
 
      - ```txt
-       apt install curl php php-common php8.5-opcache php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python-pip default-jdk gearman-job-server --no-install-recommends
+       apt install -y curl php php-common php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python3-pip default-jdk gearman-job-server --no-install-recommends
        ```
 
 2. Install Composer:
