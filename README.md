@@ -446,7 +446,7 @@ mysql -u root
      `<ENCRYPTION-KEY>` generation:
     
      ```text
-     tr -c -d '0123456789abcdefghijklmnopqrstuvwxyz' </dev/urandom | dd bs=32 count=1 2>/dev/null;echo
+     openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
      ```
 
 - ```text
@@ -462,7 +462,7 @@ mysql -u root
     `<SYNCPASS>` generation:
     
     ```text
-    tr -c -d '0123456789abcdefghijklmnopqrstuvwxyz' </dev/urandom | dd bs=32 count=1 2>/dev/null;echo
+    openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
     ```
       
   - `$config['Shib_required'] = array('Shib_mail','Shib_username');`
