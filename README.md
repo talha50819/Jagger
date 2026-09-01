@@ -312,7 +312,7 @@ sudo apt install apache2
        apt install -y curl php php-common php-gd php-curl php-mysql php-intl php-xml php-mbstring php-xmlrpc php-soap php-bcmath php-cli php-zip php-gearman php-apcu php-memcached python3-pip default-jdk gearman-job-server --no-install-recommends
        ```
 
-2. Install Composer:
+3. Install Composer:
 
    - ```txt
      curl -sS https://getcomposer.org/installer | php
@@ -324,7 +324,7 @@ sudo apt install apache2
 
 Absolutely. Since `/opt/codeigniter` is already correctly extracted, here is the **clean, correct sequence** from the beginning.
 
-3. CodeIgniter installation
+4. CodeIgniter installation
 
     ```bash
     cd /opt
@@ -357,13 +357,13 @@ Absolutely. Since `/opt/codeigniter` is already correctly extracted, here is the
     ```
 
 
-4. Download Jagger:
+5. Download Jagger:
 
    - ```txt
      git clone https://github.com/Edugate/Jagger /opt/rr3
      ```
      
-5. Install required third parties libraries:
+6. Install required third parties libraries:
 
    - ```txt
      vim /opt/rr3/application/composer.json
