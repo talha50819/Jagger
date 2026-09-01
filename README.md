@@ -322,19 +322,40 @@ sudo apt install apache2
      cp composer.phar /usr/local/bin/composer
      ```
 
-3. Install CodeIgniter:
-   
-   - ```txt
-     wget https://github.com/bcit-ci/CodeIgniter/archive/refs/tags/3.1.13.tar.gz -O /opt/codeigniter-3.1.13.tar.gz
-     ```
-     
-   - ```txt
-     tar zxf /opt/codeigniter-3.1.13.tar.gz
-     ```
+Absolutely. Since `/opt/codeigniter` is already correctly extracted, here is the **clean, correct sequence** from the beginning.
 
-   - ```txt
-     mv /opt/CodeIgniter-3.1.13 /opt/codeigniter
-     ```
+### CodeIgniter installation
+
+```bash
+cd /opt
+```
+
+```bash
+wget https://github.com/bcit-ci/CodeIgniter/archive/refs/tags/3.1.13.tar.gz -O /opt/codeigniter-3.1.13.tar.gz
+```
+
+```bash
+rm -rf /opt/codeigniter
+```
+
+```bash
+mkdir -p /opt/codeigniter
+```
+
+```bash
+tar -xzf /opt/codeigniter-3.1.13.tar.gz -C /opt/codeigniter --strip-components=1
+```
+
+### Verify
+
+```bash
+ls -la /opt/codeigniter
+```
+
+```bash
+grep "CI_VERSION" /opt/codeigniter/system/core/CodeIgniter.php
+```
+
 
 4. Download Jagger:
 
