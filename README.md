@@ -3,7 +3,7 @@
 
 [Jagger](http://jagger.heanet.ie) is developed by HEAnet to manage the Edugate multiparty SAML federation. Other organisations use Jagger to manage their federations, but it can also be used to manage the web-of-trust for a single entity. Additionally, it can be used as a GUI for the Shibboleth SAML Identity Provider ([Shibboleth](https://www.shibboleth.net)).
 
-## ✨ Features
+## Features
 
 1. Synchronise SAML metadata from another federation.
 2. Create and manage a federation.
@@ -15,7 +15,7 @@
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
 1. [Requirements](#requirements)
 2. [Important Notes](#important-notes)
@@ -44,22 +44,22 @@
 ## Requirements
 
 ### Hardware
-- **CPU**: 4 Core (64-bit)
-- **RAM**: 8 GB
-- **HDD**: 50 GB
-- **OS**: Debian 13.* or Ubuntu 26.*
+- *CPU*: 4 Core (64-bit)
+- *RAM*: 8 GB
+- *HDD*: 50 GB
+- *OS*: Debian 13.* or Ubuntu 26.*
 
 ### Software
-- **Apache Web Server**: 2.4
-- **OpenSSL**: 3.5
-- **PHP**: 8.5
-- **Java**: Default JDK (Required for XMLSecTool)
-- **Python**: 3.x with `venv` and `pip` (Required for PyFF)
-- **Shibboleth Service Provider**: 5 *(Optional)*
+- *Apache Web Server*: 2.4
+- *OpenSSL*: 3.5
+- *PHP*: 8.5
+- *Java*: Default JDK (Required for XMLSecTool)
+- *Python*: 3.x with `venv` and `pip` (Required for PyFF)
+- *Shibboleth Service Provider*: 5 *(Optional)*
 
 ### Others
-- **Domain**: A Fully Qualified Domain Name (FQDN) with public DNS resolution pointing to this server.
-- **Logo**: 
+- *Domain*: A Fully Qualified Domain Name (FQDN) with public DNS resolution pointing to this server.
+- *Logo*: 
   - Size: 350px wide × 64px high (or 146px wide × 64px high)
   - Format: PNG
   - Style: Transparent background
