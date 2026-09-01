@@ -308,7 +308,7 @@ cd /opt/rr3/application/config
 ```bash
 cp config-default.php config.php
 ```
-Generate encryption key via: 
+Generate key via: 
 ```
 openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
 ```
@@ -318,14 +318,14 @@ $config['base_url'] = 'https://jagger.example.org/rr3';
 $config['index_page'] = '';
 $config['log_threshold'] = 1;
 $config['log_path'] = '/var/log/rr3/';
-$config['encryption_key'] = '<ENCRYPTION-KEY>';
+$config['encryption_key'] = '<ENCRYPTION-KEY>'; //Generated key
 ```
 
 ### 2. `config_rr.php`
 ```bash
 cp config_rr-default.php config_rr.php
 ```
-Generate encryption key via: 
+Generate key via: 
 ```
 openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
 ```
@@ -333,7 +333,7 @@ Edit `config_rr.php`:
 ```php
 $config['rr_setup_allowed'] = TRUE; // MUST be set to FALSE after Jagger setup
 $config['site_logo'] = 'logo-default.png'; // Store file in /opt/rr3/images/
-$config['syncpass'] = '<SYNCPASS>';
+$config['syncpass'] = '<SYNCPASS>'; //Generated key
 $config['Shib_required'] = array('Shib_mail','Shib_username');
 $config['gearman'] = TRUE;
 // NOTE: Remove $config['nameids'] and all its content entirely.
