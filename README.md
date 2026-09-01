@@ -271,11 +271,11 @@ sudo apt install apache2
    sudo mkdir -p /opt/xmlsectool
    cd /opt/xmlsectool
    ```
-2. Download the latest stable release (e.g., 3.0.0):
+2. Download the latest stable release:
    ```bash
-   sudo wget https://github.com/litsec/xmlsectool/releases/download/3.0.0/xmlsectool-3.0.0-bin.zip
-   sudo unzip xmlsectool-3.0.0-bin.zip
-   sudo rm xmlsectool-3.0.0-bin.zip
+   sudo wget https://github.com/litsec/xmlsectool/releases/download/4.0.0/xmlsectool-4.0.0-bin.zip
+   sudo unzip xmlsectool-4.0.0-bin.zip
+   sudo rm xmlsectool-4.0.0-bin.zip
    sudo chown -R root:root /opt/xmlsectool
    ```
 3. Create a wrapper script for global execution:
@@ -285,7 +285,7 @@ sudo apt install apache2
    Add the following content:
    ```bash
    #!/bin/bash
-   java -jar /opt/xmlsectool/xmlsectool-3.0.0/xmlsectool.jar "$@"
+   java -jar /opt/xmlsectool/xmlsectool-4.0.0/xmlsectool.jar "$@"
    ```
 4. Make the script executable:
    ```bash
