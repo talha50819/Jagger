@@ -165,7 +165,7 @@ Example with the Consortium GARR italian mirrors:
 ## Install Dependencies
 
 ``` text
-sudo apt install fail2ban vim wget ca-certificates openssl ntp git --no-install-recommends
+sudo apt install fail2ban vim wget ca-certificates openssl ntpsec git --no-install-recommends
 ```
 
 [TOC](#table-of-contents)
