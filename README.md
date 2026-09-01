@@ -46,7 +46,7 @@ Features:
 
 ### Hardware
 
--   CPU: 2 Core (64 bit)
+-   CPU: 4 Core (64 bit)
 -   RAM: 8 GB
 -   HDD: 50 GB
 -   OS:
