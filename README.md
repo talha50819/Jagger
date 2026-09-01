@@ -324,7 +324,7 @@ sudo apt install apache2
 
 Absolutely. Since `/opt/codeigniter` is already correctly extracted, here is the **clean, correct sequence** from the beginning.
 
-### CodeIgniter installation
+4. CodeIgniter installation
 
 ```bash
 cd /opt
@@ -346,7 +346,7 @@ mkdir -p /opt/codeigniter
 tar -xzf /opt/codeigniter-3.1.13.tar.gz -C /opt/codeigniter --strip-components=1
 ```
 
-### Verify
+Verify
 
 ```bash
 ls -la /opt/codeigniter
