@@ -123,32 +123,32 @@ Example with the Consortium GARR italian mirrors:
     -   Debian 12 - Deb822 file format:
 
         ``` text
-        bash -c 'cat > /etc/apt/sources.list.d/garr.sources <<EOF
+        sudo bash -c '. /etc/os-release; cat > /etc/apt/sources.list.d/garr.sources <<EOF
         Types: deb deb-src
         URIs: https://debian.mirror.garr.it/debian/
-        Suites: trixie trixie-updates trixie-backports
-        Components: main
+        Suites: $VERSION_CODENAME $VERSION_CODENAME-updates $VERSION_CODENAME-backports
+        Components: main contrib non-free non-free-firmware
         
         Types: deb deb-src
         URIs: https://debian.mirror.garr.it/debian-security/
-        Suites: trixie-security
-        Components: main
+        Suites: $VERSION_CODENAME-security
+        Components: main contrib non-free non-free-firmware
         EOF'
         ```
 
     -   Ubuntu:
 
         ``` text
-        bash -c 'cat > /etc/apt/sources.list.d/garr.sources <<EOF
+        sudo bash -c '. /etc/os-release; cat > /etc/apt/sources.list.d/garr.sources <<EOF
         Types: deb deb-src
         URIs: https://ubuntu.mirror.garr.it/ubuntu/
-        Suites: resolute resolute-updates resolute-backports
-        Components: main
+        Suites: $VERSION_CODENAME $VERSION_CODENAME-updates $VERSION_CODENAME-backports
+        Components: main restricted universe multiverse
         
         Types: deb deb-src
         URIs: https://ubuntu.mirror.garr.it/ubuntu/
-        Suites: resolute-security
-        Components: main
+        Suites: $VERSION_CODENAME-security
+        Components: main restricted universe multiverse
         EOF'
         ```
 
