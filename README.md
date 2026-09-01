@@ -55,10 +55,10 @@ Features:
 
 ### Software
 
--   Apache Web Server (*\<= 2.4*)
--   OpenSSL (*\<= 3.0.2*)
--   Shibboleth Service Provider (*\<= 3.4.1*) - Optionally
--   PHP (*\<= 8.1*)
+-   Apache Web Server (*2.4*)
+-   OpenSSL (*3.5*)
+-   Shibboleth Service Provider (*5*) - Optionally
+-   PHP (*8.5*)
 
 ### Others
 
