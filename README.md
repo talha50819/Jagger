@@ -604,7 +604,9 @@ Take a look to my Pull Request on: https://github.com/Edugate/Jagger/pulls
     -   ``` text
         a2ensite $(hostname -f).conf
         ```
-
+    -   ``` text
+        apache2ctl configtest
+        ```
     -   ``` text
         systemctl restart apache2.service
         ```
