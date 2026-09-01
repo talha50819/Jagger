@@ -165,7 +165,7 @@ Example with the Consortium GARR italian mirrors:
 ## Install Dependencies
 
 ``` text
-sudo apt install fail2ban neno wget ca-certificates openssl ntpsec git --no-install-recommends
+sudo apt install fail2ban nano wget ca-certificates openssl ntpsec git --no-install-recommends
 ```
 
 [TOC](#table-of-contents)
@@ -366,7 +366,7 @@ Absolutely. Since `/opt/codeigniter` is already correctly extracted, here is the
 6. Install required third parties libraries:
 
    - ```txt
-     neno /opt/rr3/application/composer.json
+     nano /opt/rr3/application/composer.json
      ```
      and
      replace `"mtdowling/cron-expression": "1.1.*",` with `"dragonmantank/cron-expression": "3.*",`
@@ -528,7 +528,7 @@ Take a look to my Pull Request on: https://github.com/Edugate/Jagger/pulls
 2.  Create the Virtualhost file (**PLEASE PAY ATTENTION! you need to edit this file and customize it, check the initial comment of the file**):
 
     ``` text
-    neno /etc/apache2/sites-available/$(hostname -f).conf
+    nano /etc/apache2/sites-available/$(hostname -f).conf
     ```
 
     ``` text
