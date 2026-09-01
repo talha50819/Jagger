@@ -5,7 +5,7 @@ Here is the cleaned-up, professionally formatted GitHub-ready Markdown (ideal fo
 
 [Jagger](http://jagger.heanet.ie) is developed by HEAnet to manage the Edugate multiparty SAML federation. Other organisations use Jagger to manage their federations, but it can also be used to manage the web-of-trust for a single entity. Additionally, it can be used as a GUI for the Shibboleth SAML Identity Provider ([www.shibboleth.net](https://www.shibboleth.net)).
 
-## ✨ Features
+## Features
 
 1. Synchronise SAML metadata from another federation.
 2. Create and manage a federation.
@@ -17,7 +17,7 @@ Here is the cleaned-up, professionally formatted GitHub-ready Markdown (ideal fo
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
 1. [Requirements](#requirements)
 2. [Important Notes](#important-notes)
@@ -43,20 +43,20 @@ Here is the cleaned-up, professionally formatted GitHub-ready Markdown (ideal fo
 ## Requirements
 
 ### Hardware
-- **CPU**: 4 Core (64-bit)
-- **RAM**: 8 GB
-- **HDD**: 50 GB
-- **OS**: Debian 13.* or Ubuntu 26.*
+- *CPU*: 4 Core (64-bit)
+- *RAM*: 8 GB
+- *HDD*: 50 GB
+- *OS*: Debian 13.* or Ubuntu 26.*
 
 ### Software
-- **Apache Web Server**: 2.4
-- **OpenSSL**: 3.5
-- **Shibboleth Service Provider**: 5 *(Optional)*
-- **PHP**: 8.5
+- *Apache Web Server*: 2.4
+- *OpenSSL*: 3.5
+- *Shibboleth Service Provider*: 5 *(Optional)*
+- *PHP*: 8.5
 
 ### Others
-- **SSL Credentials**: HTTPS Certificate & Private Key
-- **Logo**: 
+- *SSL Credentials*: HTTPS Certificate & Private Key
+- *Logo*: 
   - Size: 350px wide × 64px high (or 146px wide × 64px high)
   - Format: PNG
   - Style: Transparent background
@@ -311,24 +311,32 @@ cd /opt/rr3/application/config
 ```bash
 cp config-default.php config.php
 ```
+Generate encryption key via: 
+```
+openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
+```
 Edit `config.php`:
 ```php
 $config['base_url'] = 'https://jagger.example.org/rr3';
 $config['index_page'] = '';
 $config['log_threshold'] = 1;
 $config['log_path'] = '/var/log/rr3/';
-$config['encryption_key'] = '<ENCRYPTION-KEY>'; // Generate via: openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
+$config['encryption_key'] = '<ENCRYPTION-KEY>';
 ```
 
 ### 2. `config_rr.php`
 ```bash
 cp config_rr-default.php config_rr.php
 ```
+Generate encryption key via: 
+```
+openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
+```
 Edit `config_rr.php`:
 ```php
 $config['rr_setup_allowed'] = TRUE; // MUST be set to FALSE after Jagger setup
 $config['site_logo'] = 'logo-default.png'; // Store file in /opt/rr3/images/
-$config['syncpass'] = '<SYNCPASS>'; // Generate via: openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
+$config['syncpass'] = '<SYNCPASS>';
 $config['Shib_required'] = array('Shib_mail','Shib_username');
 $config['gearman'] = TRUE;
 // NOTE: Remove $config['nameids'] and all its content entirely.
