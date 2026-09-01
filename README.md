@@ -47,11 +47,11 @@ Features:
 ### Hardware
 
 -   CPU: 2 Core (64 bit)
--   RAM: 4 GB
--   HDD: 10 GB
+-   RAM: 8 GB
+-   HDD: 50 GB
 -   OS:
-    - Debian 12 *(under testing)*
-    - Ubuntu 22.04 (tested)
+    - Debian 13.*
+    - Ubuntu 26.*
 
 ### Software
 
