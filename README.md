@@ -120,7 +120,7 @@ Example with the Consortium GARR italian mirrors:
 
 2.  Change the default mirror:
 
-    -   Debian 12 - Deb822 file format:
+    -   Debian - Deb822 file format:
 
         ``` text
         sudo bash -c '. /etc/os-release; cat > /etc/apt/sources.list.d/garr.sources <<EOF
@@ -128,11 +128,13 @@ Example with the Consortium GARR italian mirrors:
         URIs: https://debian.mirror.garr.it/debian/
         Suites: $VERSION_CODENAME $VERSION_CODENAME-updates $VERSION_CODENAME-backports
         Components: main contrib non-free non-free-firmware
+        Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
         
         Types: deb deb-src
         URIs: https://debian.mirror.garr.it/debian-security/
         Suites: $VERSION_CODENAME-security
         Components: main contrib non-free non-free-firmware
+        Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
         EOF'
         ```
 
