@@ -534,4 +534,3 @@ Official administration documentation is available at:
 
 - **Fork Author**: Muhammad Talha Siddiqui
 - **Project Repository**: [Edugate/Jagger](https://github.com/Edugate/Jagger)
-```
