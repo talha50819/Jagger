@@ -183,14 +183,14 @@ sudo apt install default-mysql-server --no-install-recommends
 sudo mysql_secure_installation
 ```
    
-On Ubuntu 22.04:
+On Ubuntu:
   - Would you like to setup VALIDATE PASSWORD component? **No**
   - Remove anonymous users? **Yes**
   - Disallow root login remotely? **Yes**
   - Remove test database and access to it? **Yes**
   - Reload privilege tables now? **Yes**
 
-On Debian 12:
+On Debian:
   - Root password: **empty or a desired value for the root password of MariaDB**
   - Switch to unix_socket: **Y**
   - Change the root password? **N**
