@@ -601,13 +601,11 @@ Take a look to my Pull Request on: https://github.com/Edugate/Jagger/pulls
 
 Here is the content rewritten as a proactive, standard **Configuration Step** for your deployment documentation (e.g., to be added to your `README.md`, `INSTALL.md`, or `DEPLOYMENT.md`).
 
-***
-
-Step 4: Configure PHP Compatibility and Directory Permissions
+Step 3: Configure PHP Compatibility and Directory Permissions
 
 Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework and specific directory permissions to ensure a smooth deployment. This prevents deprecation warnings from corrupting HTTP headers and ensures the application can write logs correctly.
 
-    1. Set Required Directory Permissions
+ 1. Set Required Directory Permissions
     Ensure the web server user (`www-data`) has ownership and write access to the required logging and proxy directories.
     
         ```bash
@@ -673,7 +671,7 @@ Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x 
            ```
 
 
-5. Enable the Apache2 SP Virtualhosts created:
+4. Enable the Apache2 SP Virtualhosts created:
 
     -   ``` text
         a2ensite $(hostname -f).conf
@@ -685,13 +683,13 @@ Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x 
         systemctl restart apache2.service
         ```
 
-6.  Check that Jagger web application works on:
+5.  Check that Jagger web application works on:
 
     ``` text
     https://jagger.example.org
     ```
 
-7.  Verify the strength of your SP's machine on [SSLLabs](https://www.ssllabs.com/ssltest/analyze.html).
+6.  Verify the strength of your SP's machine on [SSLLabs](https://www.ssllabs.com/ssltest/analyze.html).
 
 [TOC](#table-of-contents)
 
