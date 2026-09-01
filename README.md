@@ -368,8 +368,9 @@ Absolutely. Since `/opt/codeigniter` is already correctly extracted, here is the
    - ```txt
      neno /opt/rr3/application/composer.json
      ```
-     and replace `"mtdowling/cron-expression": "1.1.*",` with `"dragonmantank/cron-expression": "3.*",`
-      
+     and
+     replace `"mtdowling/cron-expression": "1.1.*",` with `"dragonmantank/cron-expression": "3.*",`
+     replace `"laminas/laminas-permissions-acl":"` version into `"2.18.0",` 
    - ```txt
      cd /opt/rr3/application ; sudo composer install
      ```
