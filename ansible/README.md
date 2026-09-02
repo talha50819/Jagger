@@ -123,10 +123,12 @@ JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user
 | `ansible_user=user` | the account you SSH in as — your normal sudo-capable login user on most systems (see step 3 if you're unsure whether that's `root` or not) |
 | `jagger_admin_email=admin@example.org` | a real email address (used for Let's Encrypt renewal notices) |
 
-Then run the playbook (add `-k` here if step 3 told you to):
+Then run the playbook — add `-k` and/or `-K` here if step 3 told you to
+(logging in as a non-root user with password-based `sudo` needs **both**:
+`-k` for the SSH password, `-K` for the separate `sudo` password prompt):
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS
+ansible-playbook site.yml $JAGGER_ARGS -k -K
 ```
 
 The whole role is idempotent — re-run the same command any time (e.g. to
@@ -134,9 +136,12 @@ change a value), and target just one part with `--tags`/`--skip-tags` (any
 tag from `roles/jagger/tasks/main.yml`):
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS --tags letsencrypt
-ansible-playbook site.yml $JAGGER_ARGS --skip-tags letsencrypt
+ansible-playbook site.yml $JAGGER_ARGS -k -K --tags letsencrypt
+ansible-playbook site.yml $JAGGER_ARGS -k -K --skip-tags letsencrypt
 ```
+
+(Drop `-k -K` from any command above once you've set up key-based SSH and
+passwordless `sudo` — see step 3.)
 
 > Optional — pin your own secret values instead (e.g. to match an existing
 > database password): copy `group_vars/jagger_servers/vault.yml.example` to
@@ -149,9 +154,9 @@ ansible-playbook site.yml $JAGGER_ARGS --skip-tags letsencrypt
 1. Visit `https://<jagger_fqdn>/rr3/setup` and create the admin user, per
    [Setup Jagger Registry](../MANUAL_INSTALL.md#setup-jagger-registry).
 2. Re-run with `jagger_setup_completed` set to lock `rr_setup_allowed` back
-   to `FALSE`:
+   to `FALSE` (same `-k -K` rules as step 5 apply to every command below):
    ```bash
-   ansible-playbook site.yml $JAGGER_ARGS -e jagger_setup_completed=true
+   ansible-playbook site.yml $JAGGER_ARGS -k -K -e jagger_setup_completed=true
    ```
 
 ## Updating Jagger
@@ -160,7 +165,7 @@ The update flow (`git pull`, `composer install`, schema migration) is in its
 own task file and only runs when asked for explicitly:
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS --tags update
+ansible-playbook site.yml $JAGGER_ARGS -k -K --tags update
 ```
 
 Afterwards, sign in and visit `https://<jagger_fqdn>/rr3/update/upgrade` to
