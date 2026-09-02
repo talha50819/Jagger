@@ -72,27 +72,76 @@ ansible-galaxy collection install -r requirements.yml
 
 ```bash
 cp inventory.ini.example inventory.ini
-# edit inventory.ini with your target's host/IP/SSH user
+nano inventory.ini
 ```
+
+It's a single line — change these three things:
+
+```ini
+[jagger_servers]
+jagger.example.org ansible_host=203.0.113.10 ansible_user=root ansible_python_interpreter=/usr/bin/python3
+```
+
+| Field | Change it to |
+|---|---|
+| `jagger.example.org` | your Jagger server's real FQDN |
+| `ansible_host=203.0.113.10` | its real IP address (or hostname) |
+| `ansible_user=root` | the SSH user you connect as (leave as `root` if that's how you SSH in) |
+
+Save and exit (`Ctrl+O`, Enter, `Ctrl+X`).
 
 ### 6. Configure variables
 
 ```bash
 cp group_vars/jagger_servers/vars.yml.example group_vars/jagger_servers/vars.yml
-# edit jagger_fqdn, jagger_admin_email, jagger_git_version, etc.
+nano group_vars/jagger_servers/vars.yml
 ```
+
+What to change:
+
+| Variable | Change it to |
+|---|---|
+| `jagger_fqdn` | same FQDN you used in `inventory.ini` |
+| `jagger_admin_email` | a real email address (used for Let's Encrypt renewal notices) |
+| `jagger_git_version` | leave as `1.x-stable` unless you need a specific branch/tag |
+| `jagger_add_hosts_entry` | leave `false` unless this is a lab box with no real DNS yet |
+| `apt_mirror_enabled` | leave `false` unless you want the GARR mirrors from the main README |
+| `jagger_site_logo` | leave as `logo-default.png` unless you're using your own logo filename |
+| `jagger_setup_completed` | leave `false` for now — you'll flip this in step 9 |
+
+Save and exit (`Ctrl+O`, Enter, `Ctrl+X`).
 
 ### 7. Configure secrets
 
-DB password, CodeIgniter encryption key, sync password:
-
 ```bash
 cp group_vars/jagger_servers/vault.yml.example group_vars/jagger_servers/vault.yml
-# generate each value the same way the manual guide does:
+```
+
+Generate a random value for **each** of the three secrets (run this three times, once per secret):
+
+```bash
 openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
-# paste the results into vault.yml, then encrypt it:
+```
+
+Then edit the file and paste one generated value into each field:
+
+```bash
+nano group_vars/jagger_servers/vault.yml
+```
+
+| Variable | Change it to |
+|---|---|
+| `vault_jagger_db_password` | a generated value (this becomes the MySQL `rr3user` password) |
+| `vault_jagger_encryption_key` | a different generated value (CodeIgniter's `encryption_key`) |
+| `vault_jagger_syncpass` | a different generated value again (Jagger's `syncpass`) |
+
+Save and exit (`Ctrl+O`, Enter, `Ctrl+X`), then encrypt the file so the secrets are never stored in plain text:
+
+```bash
 ansible-vault encrypt group_vars/jagger_servers/vault.yml
 ```
+
+You'll be asked to set a vault password here — remember it, you'll need it every time you run the playbook.
 
 ### 8. Run the playbook
 
