@@ -1,0 +1,30 @@
+# No TLS - letsencrypt_enabled is false. Plain HTTP only: fine for a lab/dev
+# box, not for anything reachable by anyone else.
+<VirtualHost *:80>
+  ServerName {{ jagger_fqdn }}
+  ServerAdmin {{ jagger_admin_email }}
+
+  CustomLog /var/log/apache2/{{ jagger_fqdn }}-access.log combined
+  ErrorLog /var/log/apache2/{{ jagger_fqdn }}-error.log
+
+  DocumentRoot /var/www/html/{{ jagger_fqdn }}
+
+  <IfModule headers_module>
+     Header set X-Frame-Options DENY
+  </IfModule>
+
+  # Jagger Application Routing
+  Alias /rr3 {{ jagger_install_dir }}
+  <Directory {{ jagger_install_dir }}>
+     Require all granted
+     RewriteEngine On
+     RewriteBase /rr3
+     RewriteCond $1 !^(Shibboleth\.sso|index\.php|logos|signedmetadata|flags|images|app|schemas|fonts|styles|js|robots\.txt|pub|includes)
+     RewriteRule ^(.*)$ /rr3/index.php?/$1 [L]
+  </Directory>
+
+  # Protect application directory
+  <Directory {{ jagger_install_dir }}/application>
+     Require all denied
+  </Directory>
+</VirtualHost>

@@ -23,8 +23,13 @@ section of the main README.
   does not need to be the Jagger server itself).
 - A target host meeting the [Requirements](../README.md#requirements) in the
   main README, reachable over SSH with a sudo-capable/root user.
-- The target's FQDN already resolving to it via public DNS (needed for the
-  Let's Encrypt step), unless you set `letsencrypt_enabled: false`.
+- The target's FQDN already resolving to it via public DNS, with the target
+  reachable from the internet on port 80 (needed for Let's Encrypt to
+  validate the certificate) — a real domain and a real admin email, not
+  `example.org`/`example.com`, which Let's Encrypt rejects outright. On a
+  lab/dev box with no public DNS (e.g. a private IP like `192.168.x.x`), add
+  `-e letsencrypt_enabled=false` to every `ansible-playbook` command instead
+  — Jagger will be served over plain `http://<fqdn>/rr3` rather than HTTPS.
 
 ## Installation
 
@@ -62,57 +67,8 @@ pipx ensurepath
 ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
 ```
 
-Two different failures show up as the same "Permission denied" message:
-
-**If the plain `ssh` command above worked (it prompted you for a password),
-but `ansible-playbook` fails** — Ansible doesn't prompt for a password unless
-told to. Either:
-- **Copy your key over once (recommended):**
-  ```bash
-  ssh-copy-id <ansible_user>@<target-host>
-  ```
-  Then step 5's `ansible-playbook` command needs nothing extra.
-- **Or keep using a password:** add `-k` to every `ansible-playbook` command
-  from step 5 onward (that's what `sshpass`, installed in step 2, is for) —
-  it'll prompt for the SSH password before each run:
-  ```bash
-  ansible-playbook site.yml $JAGGER_ARGS -k
-  ```
-
-**If even the plain `ssh root@<target-host>` command above is rejected, no
-matter the password** — the target almost certainly has direct root SSH
-login disabled (`PermitRootLogin no`, the **default on modern Ubuntu/Debian**
-— check with `grep -i PermitRootLogin /etc/ssh/sshd_config*` on the target).
-No root password will ever work there. Use your normal, sudo-capable login
-user instead (e.g. `user`, not `root`) and let Ansible's `become: true`
-(already set) escalate to root via `sudo`:
-
-```bash
-ssh user@<target-host> "sudo whoami"   # should still print "root"
-```
-
-Set `ansible_user=user` in step 5's `JAGGER_ARGS` instead of `root`. If that
-user's `sudo` itself asks for a password, also add `-K` (`--ask-become-pass`)
-alongside `-k` on every `ansible-playbook` command — you'll get two separate
-password prompts, one for SSH and one for `sudo`.
-
-**If `-k -K` instead fails with `Timeout waiting for privilege escalation
-prompt`** — Ansible ran `sudo` without a real terminal attached (it doesn't
-allocate one by default), and most systems' `sudo` refuses to show its
-password prompt without one (`Defaults requiretty` in `/etc/sudoers`, or
-just how `sudo` behaves over a plain SSH command). Fix it by giving your
-Ansible user passwordless `sudo` — the standard approach for automation
-accounts, and it sidesteps this prompt entirely, so `-K` is no longer
-needed either:
-
-```bash
-echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/ansible-user
-sudo chmod 440 /etc/sudoers.d/ansible-user
-```
-
-(Replace `user` with the real username in both the command and the file's
-content.) Drop `-K` from every `ansible-playbook` command from here on;
-keep `-k` unless you've also set up `ssh-copy-id`.
+Use your normal sudo-capable login user here (usually not `root` — see
+[Troubleshooting](#troubleshooting) if this fails).
 
 ### 4. Install the required Ansible collections
 
@@ -141,26 +97,25 @@ JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user
 | `ansible_user=user` | the account you SSH in as — your normal sudo-capable login user on most systems (see step 3 if you're unsure whether that's `root` or not) |
 | `jagger_admin_email=admin@example.org` | a real email address (used for Let's Encrypt renewal notices) |
 
-Then run the playbook — add `-k` and/or `-K` here if step 3 told you to
-(logging in as a non-root user with password-based `sudo` needs **both**:
-`-k` for the SSH password, `-K` for the separate `sudo` password prompt):
+Then run the playbook:
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS -k -K
+ansible-playbook site.yml $JAGGER_ARGS
 ```
+
+Asked for an SSH or `sudo` password unexpectedly, or it hangs/times out? See
+[Troubleshooting](#troubleshooting) — the fix is adding `-k`/`-K` flags to
+every `ansible-playbook` command in this guide, or a one-time setup step to
+avoid needing them at all.
 
 The whole role is idempotent — re-run the same command any time (e.g. to
 change a value), and target just one part with `--tags`/`--skip-tags` (any
 tag from `roles/jagger/tasks/main.yml`):
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS -k -K --tags letsencrypt
-ansible-playbook site.yml $JAGGER_ARGS -k -K --skip-tags letsencrypt
+ansible-playbook site.yml $JAGGER_ARGS --tags letsencrypt
+ansible-playbook site.yml $JAGGER_ARGS --skip-tags letsencrypt
 ```
-
-(`-k` and `-K` are independent — drop `-k` once you've set up key-based SSH
-with `ssh-copy-id`, and drop `-K` once you've set up passwordless `sudo`;
-see step 3 for both.)
 
 > Optional — pin your own secret values instead (e.g. to match an existing
 > database password): copy `group_vars/jagger_servers/vault.yml.example` to
@@ -172,10 +127,10 @@ see step 3 for both.)
 
 1. Visit `https://<jagger_fqdn>/rr3/setup` and create the admin user, per
    [Setup Jagger Registry](../MANUAL_INSTALL.md#setup-jagger-registry).
-2. Re-run with `jagger_setup_completed` set to lock `rr_setup_allowed` back
-   to `FALSE` (same `-k -K` rules as step 5 apply to every command below):
+2. Re-run with `jagger_setup_completed` set, to lock `rr_setup_allowed` back
+   to `FALSE`:
    ```bash
-   ansible-playbook site.yml $JAGGER_ARGS -k -K -e jagger_setup_completed=true
+   ansible-playbook site.yml $JAGGER_ARGS -e jagger_setup_completed=true
    ```
 
 ## Updating Jagger
@@ -184,12 +139,34 @@ The update flow (`git pull`, `composer install`, schema migration) is in its
 own task file and only runs when asked for explicitly:
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS -k -K --tags update
+ansible-playbook site.yml $JAGGER_ARGS --tags update
 ```
 
 Afterwards, sign in and visit `https://<jagger_fqdn>/rr3/update/upgrade` to
 run Jagger's own in-app upgrade routine, as in the manual guide's
 [Updating Jagger](../MANUAL_INSTALL.md#updating-jagger) section.
+
+## Troubleshooting
+
+All of these show up as some form of "Permission denied" or a hang/timeout
+when running `ansible-playbook`. Fix them in this order:
+
+| Symptom | Fix |
+|---|---|
+| `ansible-playbook` fails, but the step 3 `ssh` command worked (it just asked for a password) | Add `-k` to every `ansible-playbook` command — it tells Ansible to prompt for the SSH password too. Or run `ssh-copy-id <ansible_user>@<target-host>` once to use a key instead and never need `-k`. |
+| Even the step 3 `ssh root@...` test is rejected, no matter the password | Root SSH login is disabled (default on modern Ubuntu/Debian). Use your normal login user instead of `root` for `ansible_user`. |
+| `sudo: interactive authentication is required` | Add `-K` as well — it prompts separately for the `sudo` password. |
+| `Timeout waiting for privilege escalation prompt` (even with `-K`) | `sudo` won't show a password prompt over Ansible's connection. Give your user passwordless `sudo` instead: `echo "user ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/ansible-user && sudo chmod 440 /etc/sudoers.d/ansible-user` (replace `user`). Drop `-K` afterwards. |
+
+`-k` and `-K` are independent — add either, both, or neither depending on
+which of the above applies to you.
+
+**`Obtain the Let's Encrypt certificate` fails** with `invalid email
+address` or similar — you're still using the placeholder
+`jagger.example.org` / `admin@example.org` values, or the target has no real
+public DNS (e.g. a lab VM on a private IP). Either use your real domain and
+email in `JAGGER_ARGS`, or add `-e letsencrypt_enabled=false` if this is a
+lab/dev box — see [Prerequisites](#prerequisites).
 
 ## Where this deviates from the manual guide
 
@@ -218,6 +195,6 @@ ansible/
 └── roles/jagger/
     ├── defaults/main.yml      # all tunables, with sane defaults
     ├── tasks/                 # one numbered file per README section
-    ├── templates/             # apt sources, xmlsectool wrapper, SSL vhost
+    ├── templates/             # apt sources, xmlsectool wrapper, SSL/HTTP vhosts
     └── handlers/main.yml
 ```

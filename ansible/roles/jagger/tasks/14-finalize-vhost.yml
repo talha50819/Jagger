@@ -6,12 +6,33 @@
     owner: root
     group: root
     mode: "0644"
+  when: letsencrypt_enabled
   notify: restart apache
 
 - name: Enable the Jagger SSL VirtualHost
   ansible.builtin.command:
     cmd: "a2ensite {{ jagger_fqdn }}-le-ssl.conf"
     creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}-le-ssl.conf"
+  when: letsencrypt_enabled
+  notify: restart apache
+
+# letsencrypt_enabled: false (lab/dev, no public DNS) - serve Jagger over
+# plain HTTP instead, since there's no certificate to reference.
+- name: Template the Jagger HTTP-only VirtualHost (no TLS)
+  ansible.builtin.template:
+    src: jagger-http.conf.j2
+    dest: "/etc/apache2/sites-available/{{ jagger_fqdn }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not letsencrypt_enabled
+  notify: restart apache
+
+- name: Enable the Jagger HTTP-only VirtualHost
+  ansible.builtin.command:
+    cmd: "a2ensite {{ jagger_fqdn }}.conf"
+    creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}.conf"
+  when: not letsencrypt_enabled
   notify: restart apache
 
 - name: Validate the Apache configuration
