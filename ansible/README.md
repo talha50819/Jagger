@@ -19,16 +19,27 @@ section of the main README.
 
 ## Prerequisites
 
-- Ansible >= 2.15 on your control machine (the one you run `ansible-playbook`
-  from — not the Jagger server itself).
+- A control machine to run `ansible-playbook` from (your laptop is fine — it
+  does not need to be the Jagger server itself).
 - A target host meeting the [Requirements](../README.md#requirements) in the
   main README, reachable over SSH with a sudo-capable/root user.
 - The target's FQDN already resolving to it via public DNS (needed for the
   Let's Encrypt step), unless you set `letsencrypt_enabled: false`.
 
-### Install Ansible
+## Installation
 
-On the control machine (Debian/Ubuntu):
+Run these in order, on your **control machine**.
+
+### 1. Get this repo
+
+```bash
+git clone https://github.com/talha50819/Jagger.git
+cd Jagger/ansible
+```
+
+Every command below is run from inside this `ansible/` folder.
+
+### 2. Install Ansible
 
 ```bash
 sudo apt update
@@ -45,68 +56,70 @@ pipx install --include-deps ansible
 pipx ensurepath
 ```
 
-Then confirm SSH access to the target works before continuing:
+### 3. Verify SSH access to the target
 
 ```bash
 ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
 ```
 
-### Install the required collections
+### 4. Install the required Ansible collections
 
 ```bash
-cd ansible
 ansible-galaxy collection install -r requirements.yml
 ```
 
-## Setup
-
-1. **Inventory:**
-   ```bash
-   cp inventory.ini.example inventory.ini
-   # edit inventory.ini with your host/IP/SSH user
-   ```
-2. **Variables:**
-   ```bash
-   cp group_vars/jagger_servers/vars.yml.example group_vars/jagger_servers/vars.yml
-   # edit jagger_fqdn, jagger_admin_email, jagger_git_version, etc.
-   ```
-3. **Secrets** (DB password, CodeIgniter encryption key, sync password):
-   ```bash
-   cp group_vars/jagger_servers/vault.yml.example group_vars/jagger_servers/vault.yml
-   # generate each value the same way the manual guide does:
-   openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
-   # paste the results into vault.yml, then encrypt it:
-   ansible-vault encrypt group_vars/jagger_servers/vault.yml
-   ```
-
-## Running it
+### 5. Configure the inventory
 
 ```bash
-# Full install
+cp inventory.ini.example inventory.ini
+# edit inventory.ini with your target's host/IP/SSH user
+```
+
+### 6. Configure variables
+
+```bash
+cp group_vars/jagger_servers/vars.yml.example group_vars/jagger_servers/vars.yml
+# edit jagger_fqdn, jagger_admin_email, jagger_git_version, etc.
+```
+
+### 7. Configure secrets
+
+DB password, CodeIgniter encryption key, sync password:
+
+```bash
+cp group_vars/jagger_servers/vault.yml.example group_vars/jagger_servers/vault.yml
+# generate each value the same way the manual guide does:
+openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
+# paste the results into vault.yml, then encrypt it:
+ansible-vault encrypt group_vars/jagger_servers/vault.yml
+```
+
+### 8. Run the playbook
+
+```bash
 ansible-playbook site.yml --ask-vault-pass
+```
 
-# Re-run just one part (any role/tag from tasks/main.yml)
+The whole role is idempotent — re-running `site.yml` after a successful run
+is safe, and is how you pick up variable changes (e.g. after step 9 below).
+
+You can also target just one part of the install (any tag from
+`roles/jagger/tasks/main.yml`):
+
+```bash
 ansible-playbook site.yml --ask-vault-pass --tags letsencrypt
-ansible-playbook site.yml --ask-vault-pass --tags jagger
-
-# Skip a part
 ansible-playbook site.yml --ask-vault-pass --skip-tags letsencrypt
 ```
 
-The whole role is idempotent — re-running `site.yml` after a successful run is
-safe and is how you pick up variable changes (e.g. after flipping
-`jagger_setup_completed`, see below).
+### 9. Finish setup
 
-### Finishing setup
-
-1. Run the full playbook once. It leaves `rr_setup_allowed = TRUE`.
-2. Visit `https://<jagger_fqdn>/rr3/setup` and create the admin user, per
+1. Visit `https://<jagger_fqdn>/rr3/setup` and create the admin user, per
    [Setup Jagger Registry](../MANUAL_INSTALL.md#setup-jagger-registry).
-3. Set `jagger_setup_completed: true` in `group_vars/jagger_servers/vars.yml`
+2. Set `jagger_setup_completed: true` in `group_vars/jagger_servers/vars.yml`
    and re-run the playbook (or just `--tags setup-lock`) to lock
    `rr_setup_allowed` back to `FALSE`.
 
-### Updating Jagger
+## Updating Jagger
 
 The update flow (`git pull`, `composer install`, schema migration) is in its
 own task file and only runs when asked for explicitly:

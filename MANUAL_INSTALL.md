@@ -20,8 +20,8 @@ automate all of this.
 11. [Install Jagger](#install-jagger)
 12. [Configure Jagger Database](#configure-jagger-database)
 13. [Configure Jagger](#configure-jagger)
-14. [Populate Database Tables](#populate-database-tables)
-15. [PHP Compatibility & Code Fixes](#php-compatibility--code-fixes)
+14. [PHP Compatibility & Code Fixes](#php-compatibility--code-fixes)
+15. [Populate Database Tables](#populate-database-tables)
 16. [Finalize Apache Jagger VirtualHost](#finalize-apache-jagger-virtualhost)
 17. [Setup Jagger Registry](#setup-jagger-registry)
 18. [Updating Jagger](#updating-jagger)
@@ -400,20 +400,9 @@ cp memcached-default.php memcached.php
 
 ---
 
-## Populate Database Tables
-
-```bash
-cd /opt/rr3/application
-./doctrine
-./doctrine orm:schema-tool:create
-./doctrine orm:generate-proxies
-```
-
----
-
 ## PHP Compatibility & Code Fixes
 
-Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework to prevent deprecation warnings from corrupting HTTP headers.
+Modern PHP versions require minor adjustments to the underlying CodeIgniter 3.x framework to prevent deprecation warnings from corrupting HTTP headers. Apply these **before** the next step (Populate Database Tables) — `./doctrine` boots the same CodeIgniter core, so it hits the same `E_STRICT` initialization error if these fixes aren't in place yet.
 
 ### 1. Update CodeIgniter Exception Levels
 PHP 8.4 deprecated the `E_STRICT` constant. Remove it to prevent initialization errors.
@@ -452,6 +441,17 @@ Strict server security policies (e.g., SELinux, AppArmor) often block JIT memory
   pcre.jit=0
   ```
 - Restart Apache: `systemctl restart apache2.service`
+
+---
+
+## Populate Database Tables
+
+```bash
+cd /opt/rr3/application
+./doctrine
+./doctrine orm:schema-tool:create
+./doctrine orm:generate-proxies
+```
 
 ---
 
