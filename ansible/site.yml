@@ -1,9 +1,10 @@
 ---
 - name: Deploy the Jagger Federation Registry
-  # "all" rather than a fixed group name, so this also works with an ad-hoc,
-  # no-inventory-file invocation (see ansible/README.md's "fastest path").
-  # A file-based inventory.ini host still picks up group_vars/jagger_servers/*
-  # as long as it's a member of that group, since "all" includes it too.
+  # "all" rather than a fixed group name, so this works with the ad-hoc,
+  # no-inventory-file "-i host, -e ..." invocation documented in
+  # ansible/README.md. A file-based inventory.ini host still picks up
+  # group_vars/jagger_servers/* as long as it's a member of that group,
+  # since "all" includes it too.
   hosts: all
   become: true
   roles:
