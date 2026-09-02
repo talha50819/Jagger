@@ -62,6 +62,23 @@ pipx ensurepath
 ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
 ```
 
+If that fails with `Permission denied (publickey,password)`, the target only
+accepts a password, not a key — this `ssh` command still worked because it
+prompted you for one interactively. `ansible-playbook` won't prompt unless
+told to. Either:
+
+- **Copy your key over once (recommended):**
+  ```bash
+  ssh-copy-id <ansible_user>@<target-host>
+  ```
+  Then step 5's `ansible-playbook` command needs nothing extra.
+- **Or keep using a password:** add `-k` to every `ansible-playbook` command
+  from step 5 onward (that's what `sshpass`, installed in step 2, is for) —
+  it'll prompt for the SSH password before each run:
+  ```bash
+  ansible-playbook site.yml $JAGGER_ARGS -k
+  ```
+
 ### 4. Install the required Ansible collections
 
 ```bash
@@ -89,7 +106,7 @@ JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user
 | `ansible_user=root` | the SSH user you connect as (leave as `root` if that's how you SSH in) |
 | `jagger_admin_email=admin@example.org` | a real email address (used for Let's Encrypt renewal notices) |
 
-Then run the playbook:
+Then run the playbook (add `-k` here if step 3 told you to):
 
 ```bash
 ansible-playbook site.yml $JAGGER_ARGS
