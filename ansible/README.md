@@ -19,13 +19,39 @@ section of the main README.
 
 ## Prerequisites
 
-- Ansible >= 2.15 on your control machine.
+- Ansible >= 2.15 on your control machine (the one you run `ansible-playbook`
+  from — not the Jagger server itself).
 - A target host meeting the [Requirements](../README.md#requirements) in the
   main README, reachable over SSH with a sudo-capable/root user.
 - The target's FQDN already resolving to it via public DNS (needed for the
   Let's Encrypt step), unless you set `letsencrypt_enabled: false`.
 
-Install the required collections:
+### Install Ansible
+
+On the control machine (Debian/Ubuntu):
+
+```bash
+sudo apt update
+sudo apt install ansible sshpass --no-install-recommends
+ansible --version   # confirm ansible-core >= 2.15
+```
+
+If your distro ships an older `ansible-core` than 2.15, install it via `pipx`
+instead:
+
+```bash
+sudo apt install pipx --no-install-recommends
+pipx install --include-deps ansible
+pipx ensurepath
+```
+
+Then confirm SSH access to the target works before continuing:
+
+```bash
+ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
+```
+
+### Install the required collections
 
 ```bash
 cd ansible
