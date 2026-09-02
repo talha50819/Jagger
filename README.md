@@ -129,11 +129,13 @@
    URIs: https://ubuntu.mirror.garr.it/ubuntu/
    Suites: $VERSION_CODENAME $VERSION_CODENAME-updates $VERSION_CODENAME-backports
    Components: main restricted universe multiverse
+   Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
    
    Types: deb deb-src
    URIs: https://ubuntu.mirror.garr.it/ubuntu/
    Suites: $VERSION_CODENAME-security
    Components: main restricted universe multiverse
+   Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
    EOF'
    ```
 
