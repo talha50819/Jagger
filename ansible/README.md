@@ -62,11 +62,11 @@ pipx ensurepath
 ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
 ```
 
-If that fails with `Permission denied (publickey,password)`, the target only
-accepts a password, not a key — this `ssh` command still worked because it
-prompted you for one interactively. `ansible-playbook` won't prompt unless
-told to. Either:
+Two different failures show up as the same "Permission denied" message:
 
+**If the plain `ssh` command above worked (it prompted you for a password),
+but `ansible-playbook` fails** — Ansible doesn't prompt for a password unless
+told to. Either:
 - **Copy your key over once (recommended):**
   ```bash
   ssh-copy-id <ansible_user>@<target-host>
@@ -78,6 +78,23 @@ told to. Either:
   ```bash
   ansible-playbook site.yml $JAGGER_ARGS -k
   ```
+
+**If even the plain `ssh root@<target-host>` command above is rejected, no
+matter the password** — the target almost certainly has direct root SSH
+login disabled (`PermitRootLogin no`, the **default on modern Ubuntu/Debian**
+— check with `grep -i PermitRootLogin /etc/ssh/sshd_config*` on the target).
+No root password will ever work there. Use your normal, sudo-capable login
+user instead (e.g. `user`, not `root`) and let Ansible's `become: true`
+(already set) escalate to root via `sudo`:
+
+```bash
+ssh user@<target-host> "sudo whoami"   # should still print "root"
+```
+
+Set `ansible_user=user` in step 5's `JAGGER_ARGS` instead of `root`. If that
+user's `sudo` itself asks for a password, also add `-K` (`--ask-become-pass`)
+alongside `-k` on every `ansible-playbook` command — you'll get two separate
+password prompts, one for SSH and one for `sudo`.
 
 ### 4. Install the required Ansible collections
 
@@ -96,14 +113,14 @@ nothing rotates underneath you.
 Set the four values once per shell session, then reuse them:
 
 ```bash
-JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user=root -e jagger_fqdn=jagger.example.org -e jagger_admin_email=admin@example.org'
+JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user=user -e jagger_fqdn=jagger.example.org -e jagger_admin_email=admin@example.org'
 ```
 
 | Value | Change it to |
 |---|---|
 | `jagger.example.org` (both places) | your Jagger server's real FQDN |
 | `ansible_host=203.0.113.10` | its real IP address (or hostname) |
-| `ansible_user=root` | the SSH user you connect as (leave as `root` if that's how you SSH in) |
+| `ansible_user=user` | the account you SSH in as — your normal sudo-capable login user on most systems (see step 3 if you're unsure whether that's `root` or not) |
 | `jagger_admin_email=admin@example.org` | a real email address (used for Let's Encrypt renewal notices) |
 
 Then run the playbook (add `-k` here if step 3 told you to):
