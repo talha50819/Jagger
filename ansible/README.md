@@ -68,6 +68,24 @@ ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
 ansible-galaxy collection install -r requirements.yml
 ```
 
+> **Shortcut — skip steps 5–7 entirely.** Those steps just get three pieces
+> of information (target host, FQDN, admin email) into files, and secrets are
+> already auto-generated (step 7). If you're deploying to one server and
+> don't need reusable config, skip straight to step 8 and pass everything
+> inline instead:
+> ```bash
+> ansible-playbook site.yml \
+>   -i "jagger.example.org," \
+>   -e ansible_host=203.0.113.10 \
+>   -e ansible_user=root \
+>   -e jagger_fqdn=jagger.example.org \
+>   -e jagger_admin_email=admin@example.org
+> ```
+> Re-run the same command later to update variables or re-apply the role —
+> it's the same idempotent playbook either way. Keep reading below for the
+> file-based approach, which is easier to re-run, tweak, or hand to someone
+> else without retyping the whole command.
+
 ### 5. Configure the inventory
 
 ```bash
@@ -111,42 +129,30 @@ What to change:
 
 Save and exit (`Ctrl+O`, Enter, `Ctrl+X`).
 
-### 7. Configure secrets
+### 7. Secrets — nothing to do (auto-generated)
 
-```bash
-cp group_vars/jagger_servers/vault.yml.example group_vars/jagger_servers/vault.yml
-```
+The DB password, CodeIgniter encryption key, and sync password need to be
+*some* random 64-character string — there's no reason to type or paste them
+by hand. The playbook generates all three itself on first run and saves them
+to `.secrets/<jagger_fqdn>/` next to this README (mode `0600`, git-ignored),
+then reuses those same values on every re-run so nothing rotates underneath
+you.
 
-Generate a random value for **each** of the three secrets (run this three times, once per secret):
+**Back up that `.secrets/` folder** — if you lose it, a re-run generates new
+secrets, which breaks existing logins/sessions until you update
+`database.php`/`config.php` on the target to match.
 
-```bash
-openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
-```
-
-Then edit the file and paste one generated value into each field:
-
-```bash
-nano group_vars/jagger_servers/vault.yml
-```
-
-| Variable | Change it to |
-|---|---|
-| `vault_jagger_db_password` | a generated value (this becomes the MySQL `rr3user` password) |
-| `vault_jagger_encryption_key` | a different generated value (CodeIgniter's `encryption_key`) |
-| `vault_jagger_syncpass` | a different generated value again (Jagger's `syncpass`) |
-
-Save and exit (`Ctrl+O`, Enter, `Ctrl+X`), then encrypt the file so the secrets are never stored in plain text:
-
-```bash
-ansible-vault encrypt group_vars/jagger_servers/vault.yml
-```
-
-You'll be asked to set a vault password here — remember it, you'll need it every time you run the playbook.
+> **Optional — pin your own values instead** (e.g. to match an existing
+> database password): copy `group_vars/jagger_servers/vault.yml.example` to
+> `vault.yml`, fill in the three `vault_jagger_*` fields, encrypt it with
+> `ansible-vault encrypt group_vars/jagger_servers/vault.yml`, and run the
+> playbook with `--ask-vault-pass`. Anything set there overrides the
+> auto-generated value.
 
 ### 8. Run the playbook
 
 ```bash
-ansible-playbook site.yml --ask-vault-pass
+ansible-playbook site.yml
 ```
 
 The whole role is idempotent — re-running `site.yml` after a successful run
@@ -156,9 +162,12 @@ You can also target just one part of the install (any tag from
 `roles/jagger/tasks/main.yml`):
 
 ```bash
-ansible-playbook site.yml --ask-vault-pass --tags letsencrypt
-ansible-playbook site.yml --ask-vault-pass --skip-tags letsencrypt
+ansible-playbook site.yml --tags letsencrypt
+ansible-playbook site.yml --skip-tags letsencrypt
 ```
+
+(If you used the optional vault.yml from step 7, add `--ask-vault-pass` to
+every `ansible-playbook` command from here on.)
 
 ### 9. Finish setup
 
@@ -174,7 +183,7 @@ The update flow (`git pull`, `composer install`, schema migration) is in its
 own task file and only runs when asked for explicitly:
 
 ```bash
-ansible-playbook site.yml --ask-vault-pass --tags update
+ansible-playbook site.yml --tags update
 ```
 
 Afterwards, sign in and visit `https://<jagger_fqdn>/rr3/update/upgrade` to
@@ -200,9 +209,11 @@ ansible/
 ├── site.yml                   # entry point playbook
 ├── inventory.ini.example
 ├── requirements.yml           # collections: community.mysql, community.general
+├── .gitignore                 # ignores inventory.ini, vars.yml, vault.yml, .secrets/
+├── .secrets/                  # auto-generated secrets (created on first run)
 ├── group_vars/jagger_servers/
 │   ├── vars.yml.example       # non-secret settings
-│   └── vault.yml.example      # secrets (DB password, encryption key, syncpass)
+│   └── vault.yml.example      # optional: pin your own secrets instead of auto-generating
 └── roles/jagger/
     ├── defaults/main.yml      # all tunables, with sane defaults
     ├── tasks/                 # one numbered file per README section

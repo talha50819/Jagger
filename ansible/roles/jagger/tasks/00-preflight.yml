@@ -5,17 +5,21 @@
       - ansible_facts['os_family'] == 'Debian'
     fail_msg: "This role supports Debian/Ubuntu only (found {{ ansible_facts['os_family'] }})."
 
-- name: Assert required secrets are set
-  ansible.builtin.assert:
-    that:
-      - jagger_db_password != "CHANGE_ME"
-      - jagger_encryption_key != "CHANGE_ME_64_CHARS"
-      - jagger_syncpass != "CHANGE_ME_64_CHARS"
-    fail_msg: >-
-      jagger_db_password / jagger_encryption_key / jagger_syncpass are unset.
-      Copy group_vars/jagger_servers/vault.yml.example to vault.yml, fill in real
-      secrets, and encrypt it with `ansible-vault encrypt`.
-  no_log: true
+- name: Ensure the local secrets directory exists (used to persist auto-generated secrets)
+  ansible.builtin.file:
+    path: "{{ jagger_secrets_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Note where secrets live (values are never logged)
+  ansible.builtin.debug:
+    msg: >-
+      jagger_db_password / jagger_encryption_key / jagger_syncpass: using
+      vault_* overrides where set, auto-generated and persisted under
+      {{ jagger_secrets_dir }}/ on the control machine otherwise. Not
+      committed to git - see ansible/.gitignore.
 
 - name: Install python3-pymysql (required by the community.mysql modules used later)
   ansible.builtin.apt:

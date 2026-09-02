@@ -1,0 +1,11 @@
+# Auto-generated secrets (db password, encryption key, syncpass) - see
+# roles/jagger/defaults/main.yml. Back these up yourself; losing them breaks
+# existing sessions/DB auth on a re-run.
+.secrets/
+
+# Your real, host-specific config - copied from the .example templates.
+inventory.ini
+group_vars/jagger_servers/vars.yml
+group_vars/jagger_servers/vault.yml
+
+*.retry

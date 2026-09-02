@@ -24,16 +24,26 @@ xmlsectool_install_dir: "/opt/xmlsectool"
 jagger_git_repo: "https://github.com/Edugate/Jagger"
 jagger_git_version: "1.x-stable"
 
+# ---- Secrets ----
+# Auto-generated on first run and persisted here (on the control machine, one
+# file per secret, mode 0600) so re-runs reuse the same values instead of
+# rotating them. Not committed to git - see ansible/.gitignore.
+# To pin your own values instead, set vault_jagger_db_password /
+# vault_jagger_encryption_key / vault_jagger_syncpass (e.g. via an
+# ansible-vault-encrypted group_vars/jagger_servers/vault.yml) and they take
+# priority over the auto-generated ones.
+jagger_secrets_dir: "{{ inventory_dir }}/.secrets/{{ jagger_fqdn }}"
+
 # ---- Database ----
 jagger_db_name: "rr3"
 jagger_db_user: "rr3user"
-jagger_db_password: "{{ vault_jagger_db_password }}"
+jagger_db_password: "{{ vault_jagger_db_password | default(lookup('ansible.builtin.password', jagger_secrets_dir + '/db_password', length=32, chars=['ascii_letters', 'digits'])) }}"
 
 # ---- Jagger app config ----
 # Drop the actual logo file in {{ jagger_install_dir }}/images/ yourself first.
 jagger_site_logo: "logo-default.png"
-jagger_encryption_key: "{{ vault_jagger_encryption_key }}"
-jagger_syncpass: "{{ vault_jagger_syncpass }}"
+jagger_encryption_key: "{{ vault_jagger_encryption_key | default(lookup('ansible.builtin.password', jagger_secrets_dir + '/encryption_key', length=64, chars=['ascii_letters', 'digits'])) }}"
+jagger_syncpass: "{{ vault_jagger_syncpass | default(lookup('ansible.builtin.password', jagger_secrets_dir + '/syncpass', length=64, chars=['ascii_letters', 'digits'])) }}"
 
 # ---- Lifecycle ----
 # Leave false until you've created the admin user at https://<fqdn>/rr3/setup,
