@@ -2,6 +2,16 @@
 
 [Jagger](http://jagger.heanet.ie) is developed by HEAnet to manage the Edugate multiparty SAML federation. Other organisations use Jagger to manage their federations, but it can also be used to manage the web-of-trust for a single entity. Additionally, it can be used as a GUI for the Shibboleth SAML Identity Provider ([Shibboleth](https://www.shibboleth.net)).
 
+> [!NOTE]
+> **This is not the official installation guide.** HEAnet's official documentation
+> (see [Documentation](#documentation)) targets older, EOL package and OS versions.
+> This repo's [Manual Installation](MANUAL_INSTALL.md) and
+> [Ansible](ansible/README.md) guides have been reworked to target current
+> releases — Debian 13 / Ubuntu 24.04+, PHP 8.4/8.5, Let's Encrypt instead of
+> self-signed certs, `utf8mb4` — plus a few extras like an automated
+> Ansible-based install path. See [Requirements](#requirements) below for the
+> full current baseline.
+
 ## Features
 
 1. Synchronise SAML metadata from another federation.
@@ -52,13 +62,14 @@ Both cover the same install and end at the same place: the one-time [admin setup
 
 ## Documentation
 
-Official administration documentation is available at:  
+Official HEAnet administration documentation (application usage, not this
+install guide) is available at:  
 [https://jagger.heanet.ie/jaggerdocadmin/index.html](https://jagger.heanet.ie/jaggerdocadmin/index.html)
 
 ---
 
 ## Authors & Thanks
 
-- **Guide Author**: Muhammad Talha Siddiqui
+- **Install Guide Author**: Muhammad Talha Siddiqui — updated and maintained independently of HEAnet, to track current OS/package versions.
 - **Project Repository**: [Edugate/Jagger](https://github.com/Edugate/Jagger)
 - **Special Thanks**: [@janul](https://github.com/janul) and the HEAnet/Edugate community for their ongoing support and development.
