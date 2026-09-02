@@ -1,0 +1,31 @@
+---
+- name: Install Certbot and the Apache plugin
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-apache
+    state: present
+
+- name: Check whether a certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ jagger_fqdn }}/fullchain.pem"
+  register: jagger_cert
+
+# Uses `certonly` (rather than the manual guide's `certbot --apache`) so Certbot
+# never rewrites Apache's vhost files itself - our own template in
+# 14-finalize-vhost.yml owns that file instead, which keeps this idempotent.
+- name: Obtain the Let's Encrypt certificate
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --apache
+      --non-interactive --agree-tos
+      -m {{ jagger_admin_email }}
+      -d {{ jagger_fqdn }}
+  when: not jagger_cert.stat.exists
+  register: certbot_result
+  changed_when: "'Congratulations' in certbot_result.stdout"
+
+- name: Verify auto-renewal is configured correctly
+  ansible.builtin.command:
+    cmd: certbot renew --dry-run
+  changed_when: false

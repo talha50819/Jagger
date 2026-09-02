@@ -1,0 +1,18 @@
+---
+- name: Create the Jagger database
+  community.mysql.mysql_db:
+    name: "{{ jagger_db_name }}"
+    encoding: utf8mb4
+    collation: utf8mb4_general_ci
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Create the Jagger database user
+  community.mysql.mysql_user:
+    name: "{{ jagger_db_user }}"
+    password: "{{ jagger_db_password }}"
+    priv: "{{ jagger_db_name }}.*:ALL"
+    host: localhost
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  no_log: true

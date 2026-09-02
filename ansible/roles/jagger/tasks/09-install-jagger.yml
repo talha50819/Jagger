@@ -1,0 +1,103 @@
+---
+# php-xmlrpc intentionally omitted: permanently removed in PHP 8.0+.
+- name: Install required PHP and Java packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - php
+      - php-common
+      - php-gd
+      - php-curl
+      - php-mysql
+      - php-intl
+      - php-xml
+      - php-mbstring
+      - php-soap
+      - php-bcmath
+      - php-cli
+      - php-zip
+      - php-gearman
+      - php-apcu
+      - php-memcached
+      - default-jdk
+      - gearman-job-server
+    state: present
+    install_recommends: false
+
+- name: Check whether Composer is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/composer
+  register: composer_bin
+
+- name: Download the Composer installer
+  ansible.builtin.get_url:
+    url: https://getcomposer.org/installer
+    dest: /tmp/composer-setup.php
+    mode: "0644"
+  when: not composer_bin.stat.exists
+
+- name: Install Composer globally
+  ansible.builtin.command:
+    cmd: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+  when: not composer_bin.stat.exists
+
+- name: Ensure the CodeIgniter install directory exists
+  ansible.builtin.file:
+    path: "{{ codeigniter_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download CodeIgniter {{ codeigniter_version }}
+  ansible.builtin.get_url:
+    url: "https://github.com/bcit-ci/CodeIgniter/archive/refs/tags/{{ codeigniter_version }}.tar.gz"
+    dest: "/opt/codeigniter-{{ codeigniter_version }}.tar.gz"
+    mode: "0644"
+
+- name: Extract CodeIgniter
+  ansible.builtin.unarchive:
+    src: "/opt/codeigniter-{{ codeigniter_version }}.tar.gz"
+    dest: "{{ codeigniter_install_dir }}"
+    remote_src: true
+    extra_opts: ["--strip-components=1"]
+    creates: "{{ codeigniter_install_dir }}/system/core/CodeIgniter.php"
+
+- name: Clone/update the Jagger repository
+  ansible.builtin.git:
+    repo: "{{ jagger_git_repo }}"
+    dest: "{{ jagger_install_dir }}"
+    version: "{{ jagger_git_version }}"
+    force: false
+
+- name: Point composer.json at a maintained cron-expression fork (PHP 8 compatibility)
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/composer.json"
+    regexp: '"mtdowling/cron-expression":\s*"1\.1\.\*"'
+    replace: '"dragonmantank/cron-expression": "^3.0"'
+
+- name: Bump laminas/laminas-permissions-acl for PHP 8 compatibility
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/composer.json"
+    regexp: '"laminas/laminas-permissions-acl":\s*"[^"]*"'
+    replace: '"laminas/laminas-permissions-acl": "^2.18.0"'
+
+- name: Run composer install
+  ansible.builtin.command:
+    cmd: composer install --no-interaction
+    chdir: "{{ jagger_install_dir }}/application"
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+  register: composer_install
+  changed_when: "'Nothing to install' not in composer_install.stdout"
+
+- name: Copy CodeIgniter's index.php into the Jagger root
+  ansible.builtin.copy:
+    src: "{{ codeigniter_install_dir }}/index.php"
+    dest: "{{ jagger_install_dir }}/index.php"
+    remote_src: true
+    force: false
+
+- name: Point index.php at the CodeIgniter system directory
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/index.php"
+    regexp: "\\$system_path\\s*=\\s*'system';"
+    replace: "$system_path = '{{ codeigniter_install_dir }}/system';"

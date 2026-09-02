@@ -18,25 +18,26 @@
 
 1. [Requirements](#requirements)
 2. [Important Notes](#important-notes)
-3. [Configure the Environment](#configure-the-environment)
-4. [Configure APT Mirror](#configure-apt-mirror)
-5. [Install Dependencies](#install-dependencies)
-6. [Install MySQL Server](#install-mysql-server)
-7. [Install Apache Web Server](#install-apache-web-server)
-8. [Configure Apache Web Server (HTTP)](#configure-apache-web-server-http)
-9. [Install and Configure Let's Encrypt (HTTPS)](#install-and-configure-lets-encrypt-https)
-10. [Install PyFF (Metadata Processing)](#install-pyff-metadata-processing)
-11. [Install XMLSecTool (Metadata Validation)](#install-xmlsectool-metadata-validation)
-12. [Install Jagger](#install-jagger)
-13. [Configure Jagger Database](#configure-jagger-database)
-14. [Configure Jagger](#configure-jagger)
-15. [Populate Database Tables](#populate-database-tables)
-16. [PHP Compatibility & Code Fixes](#php-compatibility--code-fixes)
-17. [Finalize Apache Jagger VirtualHost](#finalize-apache-jagger-virtualhost)
-18. [Setup Jagger Registry](#setup-jagger-registry)
-19. [Updating Jagger](#updating-jagger)
-20. [Documentation](#documentation)
-21. [Authors & Thanks](#authors--thanks)
+3. [Automated Installation (Ansible)](#automated-installation-ansible)
+4. [Configure the Environment](#configure-the-environment)
+5. [Configure APT Mirror](#configure-apt-mirror)
+6. [Install Dependencies](#install-dependencies)
+7. [Install MySQL Server](#install-mysql-server)
+8. [Install Apache Web Server](#install-apache-web-server)
+9. [Configure Apache Web Server (HTTP)](#configure-apache-web-server-http)
+10. [Install and Configure Let's Encrypt (HTTPS)](#install-and-configure-lets-encrypt-https)
+11. [Install PyFF (Metadata Processing)](#install-pyff-metadata-processing)
+12. [Install XMLSecTool (Metadata Validation)](#install-xmlsectool-metadata-validation)
+13. [Install Jagger](#install-jagger)
+14. [Configure Jagger Database](#configure-jagger-database)
+15. [Configure Jagger](#configure-jagger)
+16. [Populate Database Tables](#populate-database-tables)
+17. [PHP Compatibility & Code Fixes](#php-compatibility--code-fixes)
+18. [Finalize Apache Jagger VirtualHost](#finalize-apache-jagger-virtualhost)
+19. [Setup Jagger Registry](#setup-jagger-registry)
+20. [Updating Jagger](#updating-jagger)
+21. [Documentation](#documentation)
+22. [Authors & Thanks](#authors--thanks)
 
 ---
 
@@ -72,6 +73,22 @@
 > Please remember to **replace all occurrences** of:
 > - `example.org` with your actual domain name.
 > - `jagger.example.org` with the Fully Qualified Domain Name (FQDN) of your Jagger instance.
+
+---
+
+## Automated Installation (Ansible)
+
+Everything below — from **Configure the Environment** through **Finalize
+Apache Jagger VirtualHost** — is also available as an Ansible role that
+automates the whole walkthrough end to end (idempotent, safe to re-run,
+secrets kept in an Ansible Vault file).
+
+See [ansible/README.md](ansible/README.md) for setup and usage. It still
+requires the manual, one-time steps in [Setup Jagger Registry](#setup-jagger-registry)
+(the admin-user web form) and dropping a logo file in place first.
+
+If you'd rather follow the steps by hand — or just want to understand what
+the playbook is doing — continue reading below.
 
 ---
 

@@ -1,0 +1,6 @@
+---
+- name: Deploy the Jagger Federation Registry
+  hosts: jagger_servers
+  become: true
+  roles:
+    - jagger

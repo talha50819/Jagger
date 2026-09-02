@@ -1,0 +1,109 @@
+---
+- name: Create the Jagger log directory
+  ansible.builtin.file:
+    path: /var/log/rr3
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+
+- name: Ensure Apache owns the application directories Jagger writes to
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    recurse: true
+  loop:
+    - "{{ jagger_install_dir }}/application"
+    - "{{ jagger_install_dir }}/application/models/Proxies"
+
+- name: Run Jagger's install.sh (creates the logos2/ directory)
+  ansible.builtin.command:
+    cmd: ./install.sh
+    chdir: "{{ jagger_install_dir }}"
+    creates: "{{ jagger_install_dir }}/logos2"
+
+- name: Copy default config files into place (skipped once they already exist, so re-runs don't clobber manual edits)
+  ansible.builtin.copy:
+    src: "{{ jagger_install_dir }}/application/config/{{ item.src }}"
+    dest: "{{ jagger_install_dir }}/application/config/{{ item.dest }}"
+    remote_src: true
+    force: false
+    owner: www-data
+    group: www-data
+  loop:
+    - { src: config-default.php,    dest: config.php }
+    - { src: config_rr-default.php, dest: config_rr.php }
+    - { src: database-default.php,  dest: database.php }
+    - { src: email-default.php,     dest: email.php }
+    - { src: memcached-default.php, dest: memcached.php }
+
+# ---- config.php ----
+- name: config.php - set base_url
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config.php"
+    regexp: "\\$config\\['base_url'\\](\\s*)=(\\s*)'.*';"
+    replace: "$config['base_url']\\1=\\2'https://{{ jagger_fqdn }}/rr3';"
+
+- name: config.php - set log_threshold to 1 (errors only)
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config.php"
+    regexp: "\\$config\\['log_threshold'\\] = \\d+;"
+    replace: "$config['log_threshold'] = 1;"
+
+- name: config.php - set log_path
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config.php"
+    regexp: "\\$config\\['log_path'\\] = '.*';"
+    replace: "$config['log_path'] = '/var/log/rr3/';"
+
+- name: config.php - set encryption_key
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config.php"
+    regexp: "\\$config\\['encryption_key'\\] = '.*';"
+    replace: "$config['encryption_key'] = '{{ jagger_encryption_key }}';"
+  no_log: true
+
+# ---- config_rr.php ----
+- name: config_rr.php - set site_logo
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config_rr.php"
+    regexp: "\\$config\\['site_logo'\\] = '.*';"
+    replace: "$config['site_logo'] = '{{ jagger_site_logo }}';"
+
+- name: config_rr.php - set syncpass
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config_rr.php"
+    regexp: "\\$config\\['syncpass'\\] = '.*';"
+    replace: "$config['syncpass'] = '{{ jagger_syncpass }}';"
+  no_log: true
+
+- name: config_rr.php - enable gearman
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config_rr.php"
+    regexp: "\\$config\\['gearman'\\] = FALSE;"
+    replace: "$config['gearman'] = TRUE;"
+
+- name: config_rr.php - remove the nameids block entirely (avoids PHP 8.x errors)
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config_rr.php"
+    regexp: "(?s)\\$config\\['nameids'\\] = array\\(.*?\\);\\n"
+    replace: ""
+
+# ---- database.php ----
+- name: database.php - set connection settings
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/database.php"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - regexp: "\\$db\\['default'\\]\\['username'\\] = '.*';"
+      replace: "$db['default']['username'] = '{{ jagger_db_user }}';"
+    - regexp: "\\$db\\['default'\\]\\['password'\\] = '.*';"
+      replace: "$db['default']['password'] = '{{ jagger_db_password }}';"
+    - regexp: "\\$db\\['default'\\]\\['database'\\] = '.*';"
+      replace: "$db['default']['database'] = '{{ jagger_db_name }}';"
+    - regexp: "\\$db\\['default'\\]\\['dsn'\\](\\s*)= '.*';"
+      replace: "$db['default']['dsn']\\1= 'mysql:host=127.0.0.1;port=3306;dbname={{ jagger_db_name }}';"
+  no_log: true

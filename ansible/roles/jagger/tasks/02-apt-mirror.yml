@@ -1,0 +1,23 @@
+---
+- name: Deploy Debian GARR mirror (deb822)
+  ansible.builtin.template:
+    src: garr-debian.sources.j2
+    dest: /etc/apt/sources.list.d/garr.sources
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Deploy Ubuntu GARR mirror (deb822)
+  ansible.builtin.template:
+    src: garr-ubuntu.sources.j2
+    dest: /etc/apt/sources.list.d/garr.sources
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Update apt cache and upgrade packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: safe

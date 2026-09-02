@@ -1,0 +1,20 @@
+---
+- name: Template the Jagger SSL VirtualHost
+  ansible.builtin.template:
+    src: jagger-le-ssl.conf.j2
+    dest: "/etc/apache2/sites-available/{{ jagger_fqdn }}-le-ssl.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart apache
+
+- name: Enable the Jagger SSL VirtualHost
+  ansible.builtin.command:
+    cmd: "a2ensite {{ jagger_fqdn }}-le-ssl.conf"
+    creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}-le-ssl.conf"
+  notify: restart apache
+
+- name: Validate the Apache configuration
+  ansible.builtin.command:
+    cmd: apache2ctl configtest
+  changed_when: false

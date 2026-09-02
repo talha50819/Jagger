@@ -1,0 +1,22 @@
+---
+- name: Remove the deprecated E_STRICT constant from CodeIgniter's Exceptions.php
+  ansible.builtin.lineinfile:
+    path: "{{ codeigniter_install_dir }}/system/core/Exceptions.php"
+    regexp: "^\\s*E_STRICT\\s*=>.*,?\\s*$"
+    state: absent
+
+- name: Set ENVIRONMENT to production in index.php
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/index.php"
+    regexp: "define\\('ENVIRONMENT',.*\\);"
+    replace: "define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'production');"
+
+- name: Disable PCRE JIT (avoids preg_replace warnings under SELinux/AppArmor)
+  ansible.builtin.lineinfile:
+    path: "{{ item }}"
+    regexp: "^;?\\s*pcre\\.jit\\s*="
+    line: "pcre.jit=0"
+  loop:
+    - "/etc/php/{{ php_version }}/apache2/php.ini"
+    - "/etc/php/{{ php_version }}/cli/php.ini"
+  notify: restart apache

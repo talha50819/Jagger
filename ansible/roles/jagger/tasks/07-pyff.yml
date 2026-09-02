@@ -1,0 +1,44 @@
+---
+- name: Install PyFF build dependencies
+  ansible.builtin.apt:
+    name:
+      - python3-venv
+      - python3-pip
+      - libxml2-dev
+      - libxslt1-dev
+      - pkg-config
+    state: present
+
+- name: Create the PyFF install directory
+  ansible.builtin.file:
+    path: "{{ pyff_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create the PyFF virtual environment
+  ansible.builtin.command:
+    cmd: "python3 -m venv {{ pyff_install_dir }}/venv"
+    creates: "{{ pyff_install_dir }}/venv/bin/activate"
+
+- name: Upgrade pip inside the venv
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ pyff_install_dir }}/venv"
+
+- name: Install PyFF (Python Federation Feeder) inside the venv
+  ansible.builtin.pip:
+    name: pyff
+    state: present
+    virtualenv: "{{ pyff_install_dir }}/venv"
+
+- name: Symlink the pyff binaries for global access
+  ansible.builtin.file:
+    src: "{{ pyff_install_dir }}/venv/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - pyff
+    - pyffd

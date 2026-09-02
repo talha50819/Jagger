@@ -1,0 +1,57 @@
+---
+# Mirrors the manual README section-by-section. Run selectively with --tags,
+# e.g. `ansible-playbook site.yml --tags letsencrypt`.
+
+- import_tasks: 00-preflight.yml
+  tags: [always]
+
+- import_tasks: 01-hostname.yml
+  tags: [hostname]
+
+- import_tasks: 02-apt-mirror.yml
+  tags: [apt-mirror]
+  when: apt_mirror_enabled
+
+- import_tasks: 03-dependencies.yml
+  tags: [dependencies]
+
+- import_tasks: 04-mysql.yml
+  tags: [mysql]
+
+- import_tasks: 05-apache-http.yml
+  tags: [apache]
+
+- import_tasks: 06-letsencrypt.yml
+  tags: [letsencrypt]
+  when: letsencrypt_enabled
+
+- import_tasks: 07-pyff.yml
+  tags: [pyff]
+
+- import_tasks: 08-xmlsectool.yml
+  tags: [xmlsectool]
+
+- import_tasks: 09-install-jagger.yml
+  tags: [jagger, install]
+
+- import_tasks: 10-database.yml
+  tags: [jagger, database]
+
+- import_tasks: 11-configure-jagger.yml
+  tags: [jagger, configure]
+
+- import_tasks: 12-php-fixes.yml
+  tags: [jagger, php-fixes]
+
+- import_tasks: 13-populate-db.yml
+  tags: [jagger, database]
+
+- import_tasks: 14-finalize-vhost.yml
+  tags: [apache, jagger]
+
+- import_tasks: 15-setup-lock.yml
+  tags: [jagger, setup-lock]
+
+# Only runs when explicitly requested: `ansible-playbook site.yml --tags update`
+- import_tasks: 16-update.yml
+  tags: [update, never]

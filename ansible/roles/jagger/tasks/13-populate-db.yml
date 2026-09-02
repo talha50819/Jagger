@@ -1,0 +1,30 @@
+---
+- name: Check if the schema has already been created
+  ansible.builtin.stat:
+    path: "{{ jagger_install_dir }}/application/.schema_created"
+  register: schema_marker
+
+- name: Generate the initial doctrine proxy classes
+  ansible.builtin.command:
+    cmd: ./doctrine
+    chdir: "{{ jagger_install_dir }}/application"
+  changed_when: false
+
+- name: Create the database schema (first run only)
+  ansible.builtin.command:
+    cmd: ./doctrine orm:schema-tool:create
+    chdir: "{{ jagger_install_dir }}/application"
+  when: not schema_marker.stat.exists
+
+- name: Generate doctrine proxies
+  ansible.builtin.command:
+    cmd: ./doctrine orm:generate-proxies
+    chdir: "{{ jagger_install_dir }}/application"
+  changed_when: false
+
+- name: Mark the schema as created
+  ansible.builtin.file:
+    path: "{{ jagger_install_dir }}/application/.schema_created"
+    state: touch
+    mode: "0644"
+  when: not schema_marker.stat.exists

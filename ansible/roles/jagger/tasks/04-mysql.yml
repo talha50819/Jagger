@@ -1,0 +1,32 @@
+---
+- name: Install MySQL/MariaDB server
+  ansible.builtin.apt:
+    name: default-mysql-server
+    state: present
+    install_recommends: false
+
+- name: Determine the actual service name in use
+  ansible.builtin.service_facts:
+
+- name: Ensure the database service is running and enabled
+  ansible.builtin.service:
+    name: "{{ 'mariadb' if 'mariadb.service' in ansible_facts.services else 'mysql' }}"
+    state: started
+    enabled: true
+
+# Equivalent to the security-relevant parts of `mysql_secure_installation`
+# (anonymous users, test database). Root authentication is deliberately left on
+# the distro default (unix_socket) rather than scripted, so a bad password value
+# here can never lock Ansible itself out of the root account.
+- name: Remove anonymous MySQL users
+  community.mysql.mysql_user:
+    name: ""
+    host_all: true
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Remove the test database
+  community.mysql.mysql_db:
+    name: test
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock

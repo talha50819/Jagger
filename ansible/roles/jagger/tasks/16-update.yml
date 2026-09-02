@@ -1,0 +1,36 @@
+---
+- name: Pull the latest Jagger code
+  ansible.builtin.git:
+    repo: "{{ jagger_git_repo }}"
+    dest: "{{ jagger_install_dir }}"
+    version: "{{ jagger_git_version }}"
+    force: false
+  register: update_pull
+
+- name: Re-run composer install
+  ansible.builtin.command:
+    cmd: composer install --no-interaction
+    chdir: "{{ jagger_install_dir }}/application"
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+  when: update_pull.changed
+
+- name: Update the database schema
+  ansible.builtin.command:
+    cmd: ./doctrine orm:schema-tool:update --force
+    chdir: "{{ jagger_install_dir }}/application"
+  when: update_pull.changed
+
+- name: Regenerate doctrine proxies
+  ansible.builtin.command:
+    cmd: ./doctrine orm:generate-proxies
+    chdir: "{{ jagger_install_dir }}/application"
+  when: update_pull.changed
+
+- name: Remind the operator to run Jagger's own upgrade routine
+  ansible.builtin.debug:
+    msg: >-
+      Code and schema updated. Now sign in and visit
+      https://{{ jagger_fqdn }}/rr3/update/upgrade to run Jagger's in-app upgrade
+      routine, and diff {{ jagger_install_dir }}/index.php against CodeIgniter's
+      default index.php.

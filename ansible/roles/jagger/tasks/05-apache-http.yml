@@ -1,0 +1,39 @@
+---
+- name: Install Apache
+  ansible.builtin.apt:
+    name: apache2
+    state: present
+
+- name: Create the Apache DocumentRoot for the FQDN
+  ansible.builtin.file:
+    path: "/var/www/html/{{ jagger_fqdn }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+
+- name: Drop a placeholder index page (used for the ACME HTTP-01 challenge)
+  ansible.builtin.copy:
+    dest: "/var/www/html/{{ jagger_fqdn }}/index.html"
+    content: "<h1>It Works! Ready for Let's Encrypt.</h1>\n"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+    force: false
+
+- name: Enable required Apache modules
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - ssl
+    - rewrite
+    - headers
+    - alias
+    - include
+    - negotiation
+    - socache_shmcb
+  notify: restart apache
+
+# 000-default.conf is intentionally left enabled here so Certbot's apache plugin
+# can find a vhost to complete the ACME HTTP-01 challenge in the next step.

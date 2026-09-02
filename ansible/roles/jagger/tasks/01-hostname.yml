@@ -1,0 +1,11 @@
+---
+- name: Set the server hostname
+  ansible.builtin.hostname:
+    name: "{{ jagger_hostname }}"
+  when: jagger_hostname is defined
+
+- name: Add the Jagger FQDN to /etc/hosts (lab/dev only)
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ ansible_default_ipv4.address }} {{ jagger_fqdn }}"
+  when: jagger_add_hosts_entry | bool

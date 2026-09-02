@@ -1,0 +1,30 @@
+---
+- name: Install Java (required by XMLSecTool)
+  ansible.builtin.apt:
+    name: default-jdk
+    state: present
+
+- name: Create the XMLSecTool install directory
+  ansible.builtin.file:
+    path: "{{ xmlsectool_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download and unpack XMLSecTool {{ xmlsectool_version }}
+  ansible.builtin.unarchive:
+    src: "https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+    dest: "{{ xmlsectool_install_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ xmlsectool_install_dir }}/xmlsectool-{{ xmlsectool_version }}/xmlsectool.jar"
+
+- name: Deploy the xmlsectool wrapper script
+  ansible.builtin.template:
+    src: xmlsectool-wrapper.sh.j2
+    dest: /usr/local/bin/xmlsectool
+    owner: root
+    group: root
+    mode: "0755"

@@ -1,0 +1,8 @@
+---
+# Runs every time so the file always reflects jagger_setup_completed: leave it
+# false while you complete the web setup wizard, then flip it and re-run.
+- name: Set rr_setup_allowed according to jagger_setup_completed
+  ansible.builtin.replace:
+    path: "{{ jagger_install_dir }}/application/config/config_rr.php"
+    regexp: "\\$config\\['rr_setup_allowed'\\] = (TRUE|FALSE);"
+    replace: "$config['rr_setup_allowed'] = {{ 'FALSE' if jagger_setup_completed else 'TRUE' }};"

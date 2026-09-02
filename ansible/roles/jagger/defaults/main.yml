@@ -1,0 +1,41 @@
+---
+# ---- Host & TLS ----
+jagger_fqdn: "jagger.example.org"
+jagger_admin_email: "admin@example.org"
+letsencrypt_enabled: true
+jagger_add_hosts_entry: false   # lab/dev only - production should have real public DNS
+
+# ---- APT mirror (optional, see "Configure APT Mirror" in the main README) ----
+apt_mirror_enabled: false
+apt_mirror_debian_url: "https://debian.mirror.garr.it/debian/"
+apt_mirror_debian_security_url: "https://debian.mirror.garr.it/debian-security/"
+apt_mirror_ubuntu_url: "https://ubuntu.mirror.garr.it/ubuntu/"
+
+# ---- Versions ----
+codeigniter_version: "3.1.13"
+xmlsectool_version: "4.0.0"
+php_version: "8.4"   # must match the php-* apt packages actually installed by the distro
+
+# ---- Paths ----
+jagger_install_dir: "/opt/rr3"
+codeigniter_install_dir: "/opt/codeigniter"
+pyff_install_dir: "/opt/pyff"
+xmlsectool_install_dir: "/opt/xmlsectool"
+jagger_git_repo: "https://github.com/Edugate/Jagger"
+jagger_git_version: "1.x-stable"
+
+# ---- Database ----
+jagger_db_name: "rr3"
+jagger_db_user: "rr3user"
+jagger_db_password: "{{ vault_jagger_db_password }}"
+
+# ---- Jagger app config ----
+# Drop the actual logo file in {{ jagger_install_dir }}/images/ yourself first.
+jagger_site_logo: "logo-default.png"
+jagger_encryption_key: "{{ vault_jagger_encryption_key }}"
+jagger_syncpass: "{{ vault_jagger_syncpass }}"
+
+# ---- Lifecycle ----
+# Leave false until you've created the admin user at https://<fqdn>/rr3/setup,
+# then set true and re-run the playbook to lock rr_setup_allowed back to FALSE.
+jagger_setup_completed: false

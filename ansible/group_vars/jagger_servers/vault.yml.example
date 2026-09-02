@@ -1,0 +1,11 @@
+# Copy to vault.yml (same directory), fill in real secrets, then encrypt it:
+#   ansible-vault encrypt group_vars/jagger_servers/vault.yml
+#
+# Generate each secret the same way the manual README does:
+#   openssl rand -base64 128 | tr -dc 'A-Za-z0-9' | head -c 64; echo
+#
+# Never commit an unencrypted vault.yml.
+
+vault_jagger_db_password: "CHANGE_ME"
+vault_jagger_encryption_key: "CHANGE_ME_64_CHARS"
+vault_jagger_syncpass: "CHANGE_ME_64_CHARS"

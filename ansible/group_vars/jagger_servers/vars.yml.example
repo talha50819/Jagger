@@ -1,0 +1,22 @@
+# Copy to vars.yml (same directory) and edit.
+# Anything not overridden here falls back to roles/jagger/defaults/main.yml.
+
+jagger_fqdn: "jagger.example.org"
+jagger_admin_email: "admin@example.org"
+
+# Branch/tag of https://github.com/Edugate/Jagger to deploy and to track on updates.
+jagger_git_version: "1.x-stable"
+
+# Set true only if this host has no real public DNS yet (lab/dev use).
+jagger_add_hosts_entry: false
+
+# Set true to point apt at the Consortium GARR mirrors (see main README).
+apt_mirror_enabled: false
+
+# Filename only; drop the actual image in {{ jagger_install_dir }}/images/ yourself
+# (350x64px or 146x64px PNG, transparent background) before running the playbook.
+jagger_site_logo: "logo-default.png"
+
+# Flip to true and re-run the playbook (any tags) once you have created the
+# Jagger admin user via the web setup wizard, to lock rr_setup_allowed back to FALSE.
+jagger_setup_completed: false
