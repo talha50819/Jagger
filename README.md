@@ -199,7 +199,7 @@ sudo apt install apache2
    ```bash
    mkdir -p /var/www/html/$(hostname -f)
    chown -R www-data:www-data /var/www/html/$(hostname -f)
-   echo '<h1>It Works! Ready for Let\'s Encrypt.</h1>' > /var/www/html/$(hostname -f)/index.html
+   echo "<h1>It Works! Ready for Let's Encrypt.</h1>" > /var/www/html/$(hostname -f)/index.html
    ```
 3. Enable required Apache modules:
    ```bash
@@ -237,7 +237,7 @@ sudo apt install apache2
 
 ## Install PyFF (Metadata Processing)
 
-[PyFF](https://github.com/IdentityPython/pyFF) is the Python Federation Framework, used for advanced SAML metadata filtering, signing, and publishing.
+[PyFF](https://github.com/IdentityPython/pyFF) (Python Federation Feeder) is a SAML metadata aggregator, used for advanced SAML metadata filtering, signing, and publishing.
 
 1. Install build dependencies for PyFF:
    ```bash
@@ -258,7 +258,7 @@ sudo apt install apache2
 4. Create global symlinks for easy access:
    ```bash
    sudo ln -s /opt/pyff/venv/bin/pyff /usr/local/bin/pyff
-   sudo ln -s /opt/pyff/venv/bin/buidl /usr/local/bin/buidl
+   sudo ln -s /opt/pyff/venv/bin/pyffd /usr/local/bin/pyffd
    ```
 
 ---
@@ -599,4 +599,3 @@ Official administration documentation is available at:
 - **Guide Author**: Muhammad Talha Siddiqui
 - **Project Repository**: [Edugate/Jagger](https://github.com/Edugate/Jagger)
 - **Special Thanks**: [@janul](https://github.com/janul) and the HEAnet/Edugate community for their ongoing support and development.
-``` 
