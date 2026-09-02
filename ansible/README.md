@@ -1,8 +1,8 @@
 # Jagger — Ansible Deployment
 
-Automates the step-by-step walkthrough in the [top-level README](../README.md)
-end to end: OS packages, MySQL, Apache, Let's Encrypt, PyFF, XMLSecTool, Jagger
-itself, its config files, the PHP 8 compatibility fixes, and the SSL vhost.
+Automates the [manual installation guide](../MANUAL_INSTALL.md) end to end:
+OS packages, MySQL, Apache, Let's Encrypt, PyFF, XMLSecTool, Jagger itself,
+its config files, the PHP 8 compatibility fixes, and the SSL vhost.
 
 Targets Debian 13.\* and Ubuntu 24.04/26.04 LTS, matching the [Requirements](../README.md#requirements)
 section of the main README.
@@ -11,7 +11,7 @@ section of the main README.
 
 - **Creating the admin user.** That's a one-time web form at
   `https://<fqdn>/rr3/setup` — no Ansible module for it. See
-  [Setup Jagger Registry](../README.md#setup-jagger-registry).
+  [Setup Jagger Registry](../MANUAL_INSTALL.md#setup-jagger-registry).
 - **Dropping your logo file.** Copy your PNG to
   `{{ jagger_install_dir }}/images/` on the target yourself before running the
   playbook (see [Requirements → Others](../README.md#requirements)); the
@@ -75,7 +75,7 @@ safe and is how you pick up variable changes (e.g. after flipping
 
 1. Run the full playbook once. It leaves `rr_setup_allowed = TRUE`.
 2. Visit `https://<jagger_fqdn>/rr3/setup` and create the admin user, per
-   [Setup Jagger Registry](../README.md#setup-jagger-registry).
+   [Setup Jagger Registry](../MANUAL_INSTALL.md#setup-jagger-registry).
 3. Set `jagger_setup_completed: true` in `group_vars/jagger_servers/vars.yml`
    and re-run the playbook (or just `--tags setup-lock`) to lock
    `rr_setup_allowed` back to `FALSE`.
@@ -91,7 +91,7 @@ ansible-playbook site.yml --ask-vault-pass --tags update
 
 Afterwards, sign in and visit `https://<jagger_fqdn>/rr3/update/upgrade` to
 run Jagger's own in-app upgrade routine, as in the manual guide's
-[Updating Jagger](../README.md#updating-jagger) section.
+[Updating Jagger](../MANUAL_INSTALL.md#updating-jagger) section.
 
 ## Where this deviates from the manual guide
 
