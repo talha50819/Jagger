@@ -96,6 +96,24 @@ user's `sudo` itself asks for a password, also add `-K` (`--ask-become-pass`)
 alongside `-k` on every `ansible-playbook` command — you'll get two separate
 password prompts, one for SSH and one for `sudo`.
 
+**If `-k -K` instead fails with `Timeout waiting for privilege escalation
+prompt`** — Ansible ran `sudo` without a real terminal attached (it doesn't
+allocate one by default), and most systems' `sudo` refuses to show its
+password prompt without one (`Defaults requiretty` in `/etc/sudoers`, or
+just how `sudo` behaves over a plain SSH command). Fix it by giving your
+Ansible user passwordless `sudo` — the standard approach for automation
+accounts, and it sidesteps this prompt entirely, so `-K` is no longer
+needed either:
+
+```bash
+echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/ansible-user
+sudo chmod 440 /etc/sudoers.d/ansible-user
+```
+
+(Replace `user` with the real username in both the command and the file's
+content.) Drop `-K` from every `ansible-playbook` command from here on;
+keep `-k` unless you've also set up `ssh-copy-id`.
+
 ### 4. Install the required Ansible collections
 
 ```bash
@@ -140,8 +158,9 @@ ansible-playbook site.yml $JAGGER_ARGS -k -K --tags letsencrypt
 ansible-playbook site.yml $JAGGER_ARGS -k -K --skip-tags letsencrypt
 ```
 
-(Drop `-k -K` from any command above once you've set up key-based SSH and
-passwordless `sudo` — see step 3.)
+(`-k` and `-K` are independent — drop `-k` once you've set up key-based SSH
+with `ssh-copy-id`, and drop `-K` once you've set up passwordless `sudo`;
+see step 3 for both.)
 
 > Optional — pin your own secret values instead (e.g. to match an existing
 > database password): copy `group_vars/jagger_servers/vault.yml.example` to
