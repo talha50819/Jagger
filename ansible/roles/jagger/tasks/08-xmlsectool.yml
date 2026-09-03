@@ -36,13 +36,13 @@
     cmd: >
       curl --fail --silent --show-error --location -C -
       --tlsv1.2 --tls-max 1.2
-      --connect-timeout 15 --speed-limit 1024 --speed-time 30
+      --connect-timeout 30 --speed-limit 1024 --speed-time 30
       -o /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip.part
       https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip
   when: not xmlsectool_zip.stat.exists
   register: xmlsectool_download
-  retries: 5
-  delay: 10
+  retries: 8
+  delay: 15
   until: xmlsectool_download is succeeded
 
 - name: Move the downloaded archive into place
