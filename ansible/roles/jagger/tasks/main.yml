@@ -10,7 +10,7 @@
 
 - import_tasks: 02-apt-mirror.yml
   tags: [apt-mirror]
-  when: apt_mirror_enabled
+  when: apt_mirror_enabled | bool
 
 - import_tasks: 03-dependencies.yml
   tags: [dependencies]
@@ -23,7 +23,7 @@
 
 - import_tasks: 06-letsencrypt.yml
   tags: [letsencrypt]
-  when: letsencrypt_enabled
+  when: letsencrypt_enabled | bool
 
 - import_tasks: 07-pyff.yml
   tags: [pyff]

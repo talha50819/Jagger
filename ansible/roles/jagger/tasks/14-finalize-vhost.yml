@@ -14,7 +14,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: letsencrypt_enabled and jagger_vhost_cert.stat.exists
+  when: letsencrypt_enabled | bool and jagger_vhost_cert.stat.exists
   tags: [letsencrypt]
   notify: restart apache
 
@@ -22,7 +22,7 @@
   ansible.builtin.command:
     cmd: "a2ensite {{ jagger_fqdn }}-le-ssl.conf"
     creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}-le-ssl.conf"
-  when: letsencrypt_enabled and jagger_vhost_cert.stat.exists
+  when: letsencrypt_enabled | bool and jagger_vhost_cert.stat.exists
   tags: [letsencrypt]
   notify: restart apache
 
@@ -35,7 +35,7 @@
       fail?). Falling back to a plain HTTP vhost for now. To fix properly:
       re-run without --skip-tags letsencrypt so a cert can be obtained, or
       set -e letsencrypt_enabled=false if this is intentionally a lab/dev box.
-  when: letsencrypt_enabled and not jagger_vhost_cert.stat.exists
+  when: letsencrypt_enabled | bool and not jagger_vhost_cert.stat.exists
 
 # Plain HTTP instead: either letsencrypt_enabled is false (lab/dev, no public
 # DNS), or it's true but no certificate exists yet (see warning above).
@@ -46,14 +46,14 @@
     owner: root
     group: root
     mode: "0644"
-  when: not letsencrypt_enabled or not jagger_vhost_cert.stat.exists
+  when: not (letsencrypt_enabled | bool) or not jagger_vhost_cert.stat.exists
   notify: restart apache
 
 - name: Enable the Jagger HTTP-only VirtualHost
   ansible.builtin.command:
     cmd: "a2ensite {{ jagger_fqdn }}.conf"
     creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}.conf"
-  when: not letsencrypt_enabled or not jagger_vhost_cert.stat.exists
+  when: not (letsencrypt_enabled | bool) or not jagger_vhost_cert.stat.exists
   notify: restart apache
 
 - name: Validate the Apache configuration
