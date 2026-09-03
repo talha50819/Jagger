@@ -109,7 +109,17 @@ generated automatically on first run and saved to `.secrets/<jagger_fqdn>/`
 next to this file (mode `0600`, git-ignored), then reused on every re-run so
 nothing rotates underneath you.
 
-Set the four values once per shell session, then reuse them:
+Set the four values once per shell session, then reuse them. **Testing on a
+lab/dev box** (private IP, no real domain — the common case for a first
+run) — this is the default below, and gets you plain `http://<fqdn>/rr3`:
+
+```bash
+JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user=user -e jagger_fqdn=jagger.example.org -e jagger_admin_email=admin@example.org -e letsencrypt_enabled=false'
+```
+
+**Deploying for real**, with a public domain already pointing at this
+server — drop `-e letsencrypt_enabled=false` from the end to get a real
+Let's Encrypt certificate instead:
 
 ```bash
 JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user=user -e jagger_fqdn=jagger.example.org -e jagger_admin_email=admin@example.org'
@@ -120,7 +130,7 @@ JAGGER_ARGS='-i jagger.example.org, -e ansible_host=203.0.113.10 -e ansible_user
 | `jagger.example.org` (both places) | your Jagger server's real FQDN |
 | `ansible_host=203.0.113.10` | its real IP address (or hostname) |
 | `ansible_user=user` | the account you SSH in as — your normal sudo-capable login user on most systems (see step 3 if you're unsure whether that's `root` or not) |
-| `jagger_admin_email=admin@example.org` | a real email address (used for Let's Encrypt renewal notices) |
+| `jagger_admin_email=admin@example.org` | a real email address (used for Let's Encrypt renewal notices) — only matters if you dropped `letsencrypt_enabled=false` |
 
 Then run the playbook:
 
