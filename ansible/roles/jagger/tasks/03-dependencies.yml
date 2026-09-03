@@ -5,6 +5,7 @@
       - fail2ban
       - nano
       - wget
+      - curl
       - ca-certificates
       - openssl
       - ntpsec

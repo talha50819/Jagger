@@ -12,16 +12,36 @@
     group: root
     mode: "0755"
 
-- name: Download XMLSecTool {{ xmlsectool_version }}
-  ansible.builtin.get_url:
-    url: "https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip"
-    dest: "/tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
-    mode: "0644"
-    timeout: 60
+- name: Check whether the XMLSecTool archive is already downloaded
+  ansible.builtin.stat:
+    path: "/tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+  register: xmlsectool_zip
+
+# get_url has no way to pin the TLS protocol version, and on some networks
+# this server's TLS 1.3 negotiation stalls indefinitely mid-transfer (curl
+# and wget both hang at ~1% for hours with default settings; curl forced to
+# TLS 1.2 downloads the same file instantly). Shell out to curl instead, and
+# download to a .part path first so a failed/interrupted attempt never
+# leaves a bad file sitting at the path the idempotency check above relies
+# on.
+- name: Download XMLSecTool {{ xmlsectool_version }} (forcing TLS 1.2 - see comment above)
+  ansible.builtin.command:
+    cmd: >
+      curl --fail --silent --show-error --location
+      --tlsv1.2 --tls-max 1.2
+      --connect-timeout 15 --max-time 120
+      -o /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip.part
+      https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip
+  when: not xmlsectool_zip.stat.exists
   register: xmlsectool_download
   retries: 3
   delay: 5
   until: xmlsectool_download is succeeded
+
+- name: Move the downloaded archive into place
+  ansible.builtin.command:
+    cmd: "mv /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip.part /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+  when: not xmlsectool_zip.stat.exists
 
 - name: Unpack XMLSecTool
   ansible.builtin.unarchive:
