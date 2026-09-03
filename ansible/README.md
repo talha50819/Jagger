@@ -196,6 +196,7 @@ as described:
 | Even `ssh root@<target-host>` is rejected outright, no matter the password | Root SSH login is disabled (default on modern Ubuntu/Debian) — expected. Use your normal login user, not `root`, throughout this guide. |
 | `sudo: a terminal is required to read the password` when running step 3's second command | You dropped the `-t` flag — add it back: `ssh -t <ansible_user>@<target-host> '...'`. |
 | You'd rather not set up passwordless `sudo`/keys at all | Skip step 3 and add `-k` (SSH password prompt) and `-K` (`sudo` password prompt) to every `ansible-playbook` command instead. |
+| `ansible-playbook` suddenly says `provided hosts list is empty, only localhost is available` | `$JAGGER_ARGS` is empty — it only lasts for the shell session it was set in, so a new terminal/SSH connection loses it. Re-run the `JAGGER_ARGS=...` line from step 5, or save it to a file once (`echo "export JAGGER_ARGS='...'" > ~/jagger-lab-vars.sh`) and `source ~/jagger-lab-vars.sh` in every new terminal instead. |
 
 **`Obtain the Let's Encrypt certificate` fails** with `invalid email
 address` or similar — you're still using the placeholder
