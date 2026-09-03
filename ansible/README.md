@@ -68,6 +68,13 @@ guide runs with no password prompts. Use your normal sudo-capable login
 user here — not `root` (direct root SSH login is disabled by default on
 modern Ubuntu/Debian).
 
+If your **control machine** doesn't already have an SSH key
+(`ls ~/.ssh/id_*.pub` shows nothing), generate one first:
+
+```bash
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
+```
+
 ```bash
 ssh-copy-id <ansible_user>@<target-host>
 ```
@@ -169,6 +176,7 @@ as described:
 
 | Symptom | Fix |
 |---|---|
+| `ssh-copy-id: ERROR: No identities found` | Your control machine has no SSH key yet. Run `ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519`, then retry `ssh-copy-id`. |
 | `ssh-copy-id` asks for a password every time, or `ssh <ansible_user>@<target-host> "sudo whoami"` still asks for one | The key or the sudoers file didn't take. Re-run both step 3 commands; check for typos in `<ansible_user>@<target-host>`. |
 | Even `ssh root@<target-host>` is rejected outright, no matter the password | Root SSH login is disabled (default on modern Ubuntu/Debian) — expected. Use your normal login user, not `root`, throughout this guide. |
 | `sudo: a terminal is required to read the password` when running step 3's second command | You dropped the `-t` flag — add it back: `ssh -t <ansible_user>@<target-host> '...'`. |
