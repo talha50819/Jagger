@@ -216,6 +216,12 @@ lab/dev box — see [Prerequisites](#prerequisites).
   from our own template. `certbot --apache` rewrites the vhost file in ways
   that aren't idempotent to model in Ansible; templating it ourselves gives
   the same end result and can be safely re-applied.
+- **XMLSecTool**: vendored in `roles/jagger/files/` instead of fetched from
+  shibboleth.net at run time — that server has proven unreliable for this
+  specific 19MB file (stalls/resets mid-download, reproduced across multiple
+  unrelated networks). The vendored copy is the unmodified official 4.0.0
+  release build (sha1 `0c7369cf70ca5da2e623ca4fa02cd0913151428c`, matching
+  what shibboleth.net itself publishes).
 
 ## Layout
 
@@ -232,6 +238,7 @@ ansible/
 └── roles/jagger/
     ├── defaults/main.yml      # all tunables, with sane defaults
     ├── tasks/                 # one numbered file per README section
+    ├── files/                 # vendored XMLSecTool binary (see "Where this deviates" above)
     ├── templates/             # apt sources, xmlsectool wrapper, SSL/HTTP vhosts
     └── handlers/main.yml
 ```

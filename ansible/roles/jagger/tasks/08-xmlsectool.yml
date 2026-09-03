@@ -12,49 +12,19 @@
     group: root
     mode: "0755"
 
-- name: Check whether the XMLSecTool archive is already downloaded
-  ansible.builtin.stat:
-    path: "/tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
-  register: xmlsectool_zip
-
-# get_url has no way to pin the TLS protocol version, and on some networks
-# this server's TLS 1.3 negotiation stalls indefinitely mid-transfer (curl
-# and wget both hang at ~1% for hours with default settings; curl forced to
-# TLS 1.2 downloads the same file instantly). Shell out to curl instead, and
-# download to a .part path first so a failed/interrupted attempt never
-# leaves a bad file sitting at the path the idempotency check above relies
-# on.
-#
-# --speed-limit/--speed-time (not --max-time) bounds this: only abort if the
-# transfer drops below 1KB/s for a sustained 30s (a real stall), not just
-# because the whole file is taking a while on a slow-but-alive connection.
-# -C - resumes from where a previous attempt left off instead of restarting
-# from byte 0, so retries actually accumulate progress on a flaky link
-# rather than repeating the same failure forever.
-- name: Download XMLSecTool {{ xmlsectool_version }} (forcing TLS 1.2 - see comment above)
-  ansible.builtin.command:
-    cmd: >
-      curl --fail --silent --show-error --location -C -
-      --tlsv1.2 --tls-max 1.2
-      --connect-timeout 30 --speed-limit 1024 --speed-time 30
-      -o /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip.part
-      https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip
-  when: not xmlsectool_zip.stat.exists
-  register: xmlsectool_download
-  retries: 8
-  delay: 15
-  until: xmlsectool_download is succeeded
-
-- name: Move the downloaded archive into place
-  ansible.builtin.command:
-    cmd: "mv /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip.part /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
-  when: not xmlsectool_zip.stat.exists
-
-- name: Unpack XMLSecTool
+# Vendored in roles/jagger/files/ instead of fetched from shibboleth.net at
+# run time: that server has proven unreliable for this specific 19MB file -
+# TLS negotiation and/or bulk transfers to it stall or reset mid-download,
+# reproduced independently across multiple unrelated networks. The
+# vendored copy is the exact official 4.0.0 release build, verified against
+# the checksum shibboleth.net itself publishes
+# (sha1: 0c7369cf70ca5da2e623ca4fa02cd0913151428c) before being committed.
+# unarchive copies it from the control machine and extracts it in one step
+# - no network dependency on the target host at all for this step.
+- name: Unpack the vendored XMLSecTool {{ xmlsectool_version }} archive
   ansible.builtin.unarchive:
-    src: "/tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+    src: "xmlsectool-{{ xmlsectool_version }}-bin.zip"
     dest: "{{ xmlsectool_install_dir }}"
-    remote_src: true
     owner: root
     group: root
     creates: "{{ xmlsectool_install_dir }}/xmlsectool-{{ xmlsectool_version }}/xmlsectool.jar"

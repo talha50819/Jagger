@@ -237,13 +237,26 @@ sudo apt install apache2
    sudo mkdir -p /opt/xmlsectool
    cd /opt/xmlsectool
    ```
-2. Download the latest stable release (4.0.0) from the official Shibboleth distribution:
+2. Download the latest stable release (4.0.0):
    ```bash
    sudo wget https://shibboleth.net/downloads/tools/xmlsectool/4.0.0/xmlsectool-4.0.0-bin.zip
    sudo unzip xmlsectool-4.0.0-bin.zip
    sudo rm xmlsectool-4.0.0-bin.zip
    sudo chown -R root:root /opt/xmlsectool
    ```
+   > [!NOTE]
+   > shibboleth.net has been unreliable for this specific 19MB file — downloads
+   > stalling or resetting mid-transfer, reproduced across multiple unrelated
+   > networks. If `wget` hangs or dies partway through, use the verified copy
+   > vendored in this repo instead (identical file — sha1
+   > `0c7369cf70ca5da2e623ca4fa02cd0913151428c` — served from GitHub's CDN,
+   > which doesn't share whatever is wrong with shibboleth.net right now):
+   > ```bash
+   > sudo wget https://raw.githubusercontent.com/talha50819/Jagger/1.x-stable/ansible/roles/jagger/files/xmlsectool-4.0.0-bin.zip
+   > sudo unzip xmlsectool-4.0.0-bin.zip
+   > sudo rm xmlsectool-4.0.0-bin.zip
+   > sudo chown -R root:root /opt/xmlsectool
+   > ```
 3. Create a wrapper script for global execution:
    ```bash
    sudo nano /usr/local/bin/xmlsectool
