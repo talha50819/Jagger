@@ -24,18 +24,25 @@
 # download to a .part path first so a failed/interrupted attempt never
 # leaves a bad file sitting at the path the idempotency check above relies
 # on.
+#
+# --speed-limit/--speed-time (not --max-time) bounds this: only abort if the
+# transfer drops below 1KB/s for a sustained 30s (a real stall), not just
+# because the whole file is taking a while on a slow-but-alive connection.
+# -C - resumes from where a previous attempt left off instead of restarting
+# from byte 0, so retries actually accumulate progress on a flaky link
+# rather than repeating the same failure forever.
 - name: Download XMLSecTool {{ xmlsectool_version }} (forcing TLS 1.2 - see comment above)
   ansible.builtin.command:
     cmd: >
-      curl --fail --silent --show-error --location
+      curl --fail --silent --show-error --location -C -
       --tlsv1.2 --tls-max 1.2
-      --connect-timeout 15 --max-time 120
+      --connect-timeout 15 --speed-limit 1024 --speed-time 30
       -o /tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip.part
       https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip
   when: not xmlsectool_zip.stat.exists
   register: xmlsectool_download
-  retries: 3
-  delay: 5
+  retries: 5
+  delay: 10
   until: xmlsectool_download is succeeded
 
 - name: Move the downloaded archive into place
