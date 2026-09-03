@@ -1,4 +1,12 @@
 ---
+# Checked fresh here (rather than trusting 06-letsencrypt.yml's fact) so this
+# is safe even if that file was skipped this run, e.g. via --skip-tags
+# letsencrypt - which only skips *obtaining* a cert, not this vhost step.
+- name: Check whether a Let's Encrypt certificate actually exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ jagger_fqdn }}/fullchain.pem"
+  register: jagger_vhost_cert
+
 - name: Template the Jagger SSL VirtualHost
   ansible.builtin.template:
     src: jagger-le-ssl.conf.j2
@@ -6,18 +14,31 @@
     owner: root
     group: root
     mode: "0644"
-  when: letsencrypt_enabled
+  when: letsencrypt_enabled and jagger_vhost_cert.stat.exists
+  tags: [letsencrypt]
   notify: restart apache
 
 - name: Enable the Jagger SSL VirtualHost
   ansible.builtin.command:
     cmd: "a2ensite {{ jagger_fqdn }}-le-ssl.conf"
     creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}-le-ssl.conf"
-  when: letsencrypt_enabled
+  when: letsencrypt_enabled and jagger_vhost_cert.stat.exists
+  tags: [letsencrypt]
   notify: restart apache
 
-# letsencrypt_enabled: false (lab/dev, no public DNS) - serve Jagger over
-# plain HTTP instead, since there's no certificate to reference.
+- name: Warn if letsencrypt_enabled is true but no certificate was found
+  ansible.builtin.debug:
+    msg: >-
+      letsencrypt_enabled is true but no certificate exists yet at
+      /etc/letsencrypt/live/{{ jagger_fqdn }}/fullchain.pem (did you run with
+      --skip-tags letsencrypt before one was ever obtained, or did issuance
+      fail?). Falling back to a plain HTTP vhost for now. To fix properly:
+      re-run without --skip-tags letsencrypt so a cert can be obtained, or
+      set -e letsencrypt_enabled=false if this is intentionally a lab/dev box.
+  when: letsencrypt_enabled and not jagger_vhost_cert.stat.exists
+
+# Plain HTTP instead: either letsencrypt_enabled is false (lab/dev, no public
+# DNS), or it's true but no certificate exists yet (see warning above).
 - name: Template the Jagger HTTP-only VirtualHost (no TLS)
   ansible.builtin.template:
     src: jagger-http.conf.j2
@@ -25,14 +46,14 @@
     owner: root
     group: root
     mode: "0644"
-  when: not letsencrypt_enabled
+  when: not letsencrypt_enabled or not jagger_vhost_cert.stat.exists
   notify: restart apache
 
 - name: Enable the Jagger HTTP-only VirtualHost
   ansible.builtin.command:
     cmd: "a2ensite {{ jagger_fqdn }}.conf"
     creates: "/etc/apache2/sites-enabled/{{ jagger_fqdn }}.conf"
-  when: not letsencrypt_enabled
+  when: not letsencrypt_enabled or not jagger_vhost_cert.stat.exists
   notify: restart apache
 
 - name: Validate the Apache configuration

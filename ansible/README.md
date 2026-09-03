@@ -133,12 +133,17 @@ see [Troubleshooting](#troubleshooting).
 
 The whole role is idempotent — re-run the same command any time (e.g. to
 change a value), and target just one part with `--tags`/`--skip-tags` (any
-tag from `roles/jagger/tasks/main.yml`):
+tag from `roles/jagger/tasks/main.yml`), e.g. to re-run only the MySQL steps:
 
 ```bash
-ansible-playbook site.yml $JAGGER_ARGS --tags letsencrypt
-ansible-playbook site.yml $JAGGER_ARGS --skip-tags letsencrypt
+ansible-playbook site.yml $JAGGER_ARGS --tags mysql
 ```
+
+> `--skip-tags letsencrypt` only skips *(re-)obtaining* a certificate on a
+> host that already has one — it does **not** disable Let's Encrypt for lab/dev
+> use. For that, use `-e letsencrypt_enabled=false` instead (see
+> [Prerequisites](#prerequisites)); the vhost step checks for an actual
+> certificate either way and falls back to plain HTTP if none exists.
 
 > Optional — pin your own secret values instead (e.g. to match an existing
 > database password): copy `group_vars/jagger_servers/vault.yml.example` to
