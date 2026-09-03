@@ -61,14 +61,32 @@ pipx install --include-deps ansible
 pipx ensurepath
 ```
 
-### 3. Verify SSH access to the target
+### 3. Set up SSH access to the target
+
+Do this once, and every `ansible-playbook` command for the rest of this
+guide runs with no password prompts. Use your normal sudo-capable login
+user here — not `root` (direct root SSH login is disabled by default on
+modern Ubuntu/Debian).
 
 ```bash
-ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root"
+ssh-copy-id <ansible_user>@<target-host>
 ```
 
-Use your normal sudo-capable login user here (usually not `root` — see
-[Troubleshooting](#troubleshooting) if this fails).
+```bash
+ssh -t <ansible_user>@<target-host> 'echo "$(whoami) ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/ansible-user && sudo chmod 440 /etc/sudoers.d/ansible-user'
+```
+
+(`-t` forces a real terminal for this one command, since `sudo` needs one to
+show its password prompt.)
+
+Both commands ask for a password interactively — that's expected, and the
+last time you'll need to type one. Then confirm it worked:
+
+```bash
+ssh <ansible_user>@<target-host> "sudo whoami"   # should print "root", no prompts
+```
+
+If any of this doesn't work as described, see [Troubleshooting](#troubleshooting).
 
 ### 4. Install the required Ansible collections
 
@@ -103,10 +121,8 @@ Then run the playbook:
 ansible-playbook site.yml $JAGGER_ARGS
 ```
 
-Asked for an SSH or `sudo` password unexpectedly, or it hangs/times out? See
-[Troubleshooting](#troubleshooting) — the fix is adding `-k`/`-K` flags to
-every `ansible-playbook` command in this guide, or a one-time setup step to
-avoid needing them at all.
+With step 3 done, this shouldn't ask for any password. If it does (or hangs),
+see [Troubleshooting](#troubleshooting).
 
 The whole role is idempotent — re-run the same command any time (e.g. to
 change a value), and target just one part with `--tags`/`--skip-tags` (any
@@ -148,18 +164,15 @@ run Jagger's own in-app upgrade routine, as in the manual guide's
 
 ## Troubleshooting
 
-All of these show up as some form of "Permission denied" or a hang/timeout
-when running `ansible-playbook`. Fix them in this order:
+Step 3's two commands cover the normal case. If something there doesn't go
+as described:
 
 | Symptom | Fix |
 |---|---|
-| `ansible-playbook` fails, but the step 3 `ssh` command worked (it just asked for a password) | Add `-k` to every `ansible-playbook` command — it tells Ansible to prompt for the SSH password too. Or run `ssh-copy-id <ansible_user>@<target-host>` once to use a key instead and never need `-k`. |
-| Even the step 3 `ssh root@...` test is rejected, no matter the password | Root SSH login is disabled (default on modern Ubuntu/Debian). Use your normal login user instead of `root` for `ansible_user`. |
-| `sudo: interactive authentication is required` | Add `-K` as well — it prompts separately for the `sudo` password. |
-| `Timeout waiting for privilege escalation prompt` (even with `-K`) | `sudo` won't show a password prompt over Ansible's connection. Give your user passwordless `sudo` instead: `echo "user ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/ansible-user && sudo chmod 440 /etc/sudoers.d/ansible-user` (replace `user`). Drop `-K` afterwards. |
-
-`-k` and `-K` are independent — add either, both, or neither depending on
-which of the above applies to you.
+| `ssh-copy-id` asks for a password every time, or `ssh <ansible_user>@<target-host> "sudo whoami"` still asks for one | The key or the sudoers file didn't take. Re-run both step 3 commands; check for typos in `<ansible_user>@<target-host>`. |
+| Even `ssh root@<target-host>` is rejected outright, no matter the password | Root SSH login is disabled (default on modern Ubuntu/Debian) — expected. Use your normal login user, not `root`, throughout this guide. |
+| `sudo: a terminal is required to read the password` when running step 3's second command | You dropped the `-t` flag — add it back: `ssh -t <ansible_user>@<target-host> '...'`. |
+| You'd rather not set up passwordless `sudo`/keys at all | Skip step 3 and add `-k` (SSH password prompt) and `-K` (`sudo` password prompt) to every `ansible-playbook` command instead. |
 
 **`Obtain the Let's Encrypt certificate` fails** with `invalid email
 address` or similar — you're still using the placeholder
