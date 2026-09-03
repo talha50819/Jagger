@@ -32,7 +32,7 @@ jagger_git_version: "1.x-stable"
 # vault_jagger_encryption_key / vault_jagger_syncpass (e.g. via an
 # ansible-vault-encrypted group_vars/jagger_servers/vault.yml) and they take
 # priority over the auto-generated ones.
-jagger_secrets_dir: "{{ inventory_dir }}/.secrets/{{ jagger_fqdn }}"
+jagger_secrets_dir: "{{ playbook_dir }}/.secrets/{{ jagger_fqdn }}"
 
 # ---- Database ----
 jagger_db_name: "rr3"
