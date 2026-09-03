@@ -12,9 +12,20 @@
     group: root
     mode: "0755"
 
-- name: Download and unpack XMLSecTool {{ xmlsectool_version }}
+- name: Download XMLSecTool {{ xmlsectool_version }}
+  ansible.builtin.get_url:
+    url: "https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+    dest: "/tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+    mode: "0644"
+    timeout: 60
+  register: xmlsectool_download
+  retries: 3
+  delay: 5
+  until: xmlsectool_download is succeeded
+
+- name: Unpack XMLSecTool
   ansible.builtin.unarchive:
-    src: "https://shibboleth.net/downloads/tools/xmlsectool/{{ xmlsectool_version }}/xmlsectool-{{ xmlsectool_version }}-bin.zip"
+    src: "/tmp/xmlsectool-{{ xmlsectool_version }}-bin.zip"
     dest: "{{ xmlsectool_install_dir }}"
     remote_src: true
     owner: root

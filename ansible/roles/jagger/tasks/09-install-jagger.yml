@@ -34,6 +34,7 @@
     url: https://getcomposer.org/installer
     dest: /tmp/composer-setup.php
     mode: "0644"
+    timeout: 60
   when: not composer_bin.stat.exists
 
 - name: Install Composer globally
@@ -52,6 +53,11 @@
     url: "https://github.com/bcit-ci/CodeIgniter/archive/refs/tags/{{ codeigniter_version }}.tar.gz"
     dest: "/opt/codeigniter-{{ codeigniter_version }}.tar.gz"
     mode: "0644"
+    timeout: 60
+  register: codeigniter_download
+  retries: 3
+  delay: 5
+  until: codeigniter_download is succeeded
 
 - name: Extract CodeIgniter
   ansible.builtin.unarchive:
