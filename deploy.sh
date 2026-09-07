@@ -39,6 +39,14 @@ LOG_FILE="/var/log/jagger-deploy-$(date +%Y%m%d-%H%M%S).log"
 STEP_TOTAL=16
 STEP_CURRENT=0
 STEP_TIMES=()
+# Rough relative time cost of each of the 16 steps (arbitrary units, not
+# seconds) -- these vary wildly in practice (PyFF's pip install alone can
+# take 5+ minutes while several other steps finish in under a second), so a
+# flat "average time per completed step so far" estimate badly undershoots
+# once a slow step is reached. Weighting lets the ETA anticipate that before
+# it gets there, then self-calibrates to this machine's actual speed using
+# the ratio of real elapsed time to weight-of-work-done-so-far.
+STEP_WEIGHTS=(2 2 60 15 20 10 15 300 60 90 5 5 10 15 10 3)
 ASSUME_YES=0
 SECONDS=0
 
@@ -243,10 +251,14 @@ run_step() {
     STEP_CURRENT=$((STEP_CURRENT + 1))
     echo
     draw_progress "$STEP_CURRENT" "$STEP_TOTAL"
-    if [[ $completed -gt 0 ]]; then
-        local avg=$(( SECONDS / completed ))
-        local remaining=$(( avg * (STEP_TOTAL - completed) ))
-        printf " ${DIM}- ETA ~%s${RESET}" "$(format_hms "$remaining")"
+    if [[ $completed -gt 0 && $SECONDS -gt 0 ]]; then
+        local weight_done=0 weight_left=0 i
+        for ((i = 0; i < completed; i++)); do weight_done=$(( weight_done + STEP_WEIGHTS[i] )); done
+        for ((i = completed; i < STEP_TOTAL; i++)); do weight_left=$(( weight_left + STEP_WEIGHTS[i] )); done
+        if [[ $weight_done -gt 0 ]]; then
+            local remaining=$(( SECONDS * weight_left / weight_done ))
+            printf " ${DIM}- ETA ~%s${RESET}" "$(format_hms "$remaining")"
+        fi
     fi
     echo
     echo "${BOLD}${WHITE}${ARROW} ${desc}${RESET}"
