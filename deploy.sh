@@ -134,7 +134,12 @@ require_root() {
 
 format_hms() {
     local t=$1
-    printf "%02d:%02d" $((t / 60)) $((t % 60))
+    local h=$((t / 3600)) m=$(((t % 3600) / 60)) s=$((t % 60))
+    if ((h > 0)); then
+        printf "%d:%02d:%02d" "$h" "$m" "$s"
+    else
+        printf "%02d:%02d" "$m" "$s"
+    fi
 }
 
 # ----------------------------------------------------------------------------
@@ -991,6 +996,11 @@ echo
 confirm "Start deployment now?" Y || { echo "Aborted."; exit 0; }
 
 # --- Run steps ---------------------------------------------------------
+# Reset the clock here, not at script start: everything above this point is
+# spent waiting on the user (typing the FQDN, DB creds, this confirmation),
+# and that thinking time must not be counted as elapsed deployment time or
+# the very first ETA would come out wildly inflated.
+SECONDS=0
 : >"$LOG_FILE"
 chmod 600 "$LOG_FILE"
 
