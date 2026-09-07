@@ -94,7 +94,10 @@ sudo ./deploy.sh
 It auto-detects the server's IP/OS, asks you for the handful of values it
 can't guess (FQDN, admin email, DB credentials — or press Enter to
 auto-generate a strong password), then runs the full deployment with a
-progress bar and per-step timing.
+progress bar and per-step timing. It also asks whether this is a **testing**
+deployment (default — a self-signed certificate, works with any hostname,
+e.g. inside a VM) or a **production** one (a real Let's Encrypt certificate,
+which needs a public domain that already resolves to this server).
 
 > [!TIP]
 > For a non-interactive/scripted run, pass `-y` and set the `JAGGER_*`

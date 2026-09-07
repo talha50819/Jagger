@@ -17,6 +17,9 @@
 #   JAGGER_FQDN            e.g. jagger.example.org            (required for -y)
 #   JAGGER_ADMIN_EMAIL     e.g. admin@example.org             (required for -y)
 #   JAGGER_HOSTNAME        short hostname (default: first label of the FQDN)
+#   JAGGER_DEPLOY_MODE     "testing" (self-signed cert, default) or "production"
+#                          (real Let's Encrypt cert — needs a public domain
+#                          that already resolves to this server)
 #   JAGGER_DB_NAME         (default: rr3)
 #   JAGGER_DB_USER         (default: rr3user)
 #   JAGGER_DB_PASS         (default: randomly generated)
@@ -323,6 +326,20 @@ step_mysql() {
     apt-get install -y default-mysql-server --no-install-recommends
     systemctl enable --now mysql 2>/dev/null || systemctl enable --now mariadb
 
+    # A previous (possibly partial) run may have already switched root from
+    # socket auth to a password. Detect whichever still works before we
+    # overwrite the credentials file, so re-running this script is safe.
+    local auth_cmd="mysql -u root"
+    if ! mysql -u root -e "SELECT 1;" >/dev/null 2>&1; then
+        if [[ -f "$MYSQL_ROOT_CNF" ]] && mysql --defaults-extra-file="$MYSQL_ROOT_CNF" -e "SELECT 1;" >/dev/null 2>&1; then
+            auth_cmd="mysql --defaults-extra-file=$MYSQL_ROOT_CNF"
+        else
+            echo "Cannot authenticate to MySQL as root (neither socket auth nor ${MYSQL_ROOT_CNF} works)."
+            echo "If root already has a password from an earlier run, put it in ${MYSQL_ROOT_CNF} under [client] password= and re-run."
+            return 1
+        fi
+    fi
+
     install -m 600 /dev/null "$MYSQL_ROOT_CNF"
     cat >"$MYSQL_ROOT_CNF" <<EOF
 [client]
@@ -330,7 +347,7 @@ user=root
 password=${MYSQL_ROOT_PASS}
 EOF
 
-    mysql -u root <<SQL
+    $auth_cmd <<SQL
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.db WHERE Db='test' OR Db LIKE 'test\\_%';
@@ -361,11 +378,19 @@ EOF
     systemctl restart apache2
 }
 
-step_letsencrypt() {
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get install -y certbot python3-certbot-apache
-    certbot certonly --apache -d "$FQDN" -m "$ADMIN_EMAIL" --agree-tos --non-interactive
-    certbot renew --dry-run
+step_tls() {
+    if [[ "$DEPLOY_MODE" == "production" ]]; then
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get install -y certbot python3-certbot-apache
+        certbot certonly --apache -d "$FQDN" -m "$ADMIN_EMAIL" --agree-tos --non-interactive
+        certbot renew --dry-run
+    else
+        mkdir -p "$(dirname "$CERT_FILE")"
+        openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
+            -keyout "$CERT_KEY" -out "$CERT_FILE" \
+            -subj "/CN=${FQDN}" \
+            -addext "subjectAltName=DNS:${FQDN}"
+    fi
 }
 
 step_pyff() {
@@ -542,10 +567,10 @@ step_finalize_vhost() {
 
     DocumentRoot /var/www/html/${FQDN}
 
-    # Let's Encrypt managed certificates (DO NOT MODIFY THESE 3 LINES)
-    SSLCertificateFile /etc/letsencrypt/live/${FQDN}/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/${FQDN}/privkey.pem
-    Include /etc/letsencrypt/options-ssl-apache.conf
+    # ${DEPLOY_MODE^} certificate
+    SSLCertificateFile ${CERT_FILE}
+    SSLCertificateKeyFile ${CERT_KEY}
+${SSL_EXTRA_CONF}
 
     # Jagger Specific Security Headers
     <IfModule headers_module>
@@ -591,7 +616,7 @@ for arg in "$@"; do
     case "$arg" in
         -y|--yes) ASSUME_YES=1 ;;
         -h|--help)
-            sed -n '2,26p' "${BASH_SOURCE[0]}"
+            sed -n '2,30p' "${BASH_SOURCE[0]}"
             exit 0
             ;;
         *) die "Unknown option: ${arg} (use --help)" ;;
@@ -653,6 +678,27 @@ hr
 ask "Fully Qualified Domain Name for Jagger" "${JAGGER_FQDN:-}" FQDN '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$'
 ask "Short hostname for this server" "${JAGGER_HOSTNAME:-${FQDN%%.*}}" SHORT_HOSTNAME
 ask "Admin/contact email (Let's Encrypt + Apache)" "${JAGGER_ADMIN_EMAIL:-}" ADMIN_EMAIL '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+
+DEPLOY_MODE="${JAGGER_DEPLOY_MODE:-testing}"
+if [[ "$ASSUME_YES" -ne 1 ]]; then
+    echo
+    echo "${BOLD}Certificate mode${RESET}"
+    echo "  ${DIM}testing    — self-signed cert, works instantly with any hostname (VMs, local testing)${RESET}"
+    echo "  ${DIM}production — a real, trusted Let's Encrypt cert (needs a public domain already pointing here)${RESET}"
+    if confirm "Is this a production deployment with a real public domain?" N; then
+        DEPLOY_MODE="production"
+    fi
+fi
+if [[ "$DEPLOY_MODE" == "production" ]]; then
+    CERT_FILE="/etc/letsencrypt/live/${FQDN}/fullchain.pem"
+    CERT_KEY="/etc/letsencrypt/live/${FQDN}/privkey.pem"
+    SSL_EXTRA_CONF="    Include /etc/letsencrypt/options-ssl-apache.conf"
+else
+    CERT_FILE="/etc/ssl/jagger/${FQDN}/fullchain.pem"
+    CERT_KEY="/etc/ssl/jagger/${FQDN}/privkey.pem"
+    SSL_EXTRA_CONF=$'    SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1\n    SSLCipherSuite HIGH:!aNULL:!MD5'
+fi
+
 ask "Jagger database name" "${JAGGER_DB_NAME:-rr3}" DB_NAME
 ask "Jagger database user" "${JAGGER_DB_USER:-rr3user}" DB_USER
 ask_secret "Jagger database password" DB_PASS "${JAGGER_DB_PASS:-}"
@@ -688,6 +734,7 @@ hr
 print_kv "FQDN"            "$FQDN"
 print_kv "Hostname"        "$SHORT_HOSTNAME"
 print_kv "Admin email"     "$ADMIN_EMAIL"
+print_kv "Certificate"     "${DEPLOY_MODE} $([[ $DEPLOY_MODE == testing ]] && echo '(self-signed)' || echo "(Let's Encrypt)")"
 print_kv "Database"        "${DB_NAME} (user: ${DB_USER})"
 print_kv "APT mirror"      "$([[ $USE_MIRROR -eq 1 ]] && echo "${MIRROR_URL}" || echo "default")"
 print_kv "Logo"            "${LOGO_PATH:-default}"
@@ -708,7 +755,11 @@ run_step "Update & upgrade packages"                 step_apt_upgrade
 run_step "Install base dependencies"                 step_base_deps
 run_step "Install & secure MySQL"                    step_mysql
 run_step "Install Apache & configure HTTP vhost"     step_apache_http
-run_step "Obtain Let's Encrypt certificate"          step_letsencrypt
+if [[ "$DEPLOY_MODE" == "production" ]]; then
+    run_step "Obtain Let's Encrypt certificate"      step_tls
+else
+    run_step "Generate self-signed certificate"      step_tls
+fi
 run_step "Install PyFF"                              step_pyff
 run_step "Install XMLSecTool"                        step_xmlsectool
 run_step "Install PHP, Composer, CodeIgniter & Jagger" step_install_jagger
@@ -735,7 +786,15 @@ echo "${BOLD}Next steps (manual — cannot be automated):${RESET}"
 echo "  1. Visit ${CYAN}https://${FQDN}/rr3/setup${RESET} and create the initial admin user."
 echo "  2. Then edit ${CYAN}/opt/rr3/application/config/config_rr.php${RESET} and set:"
 echo "         \$config['rr_setup_allowed'] = FALSE;"
-echo "  3. Check your SSL grade: https://www.ssllabs.com/ssltest/analyze.html?d=${FQDN}"
+if [[ "$DEPLOY_MODE" == "production" ]]; then
+    echo "  3. Check your SSL grade: https://www.ssllabs.com/ssltest/analyze.html?d=${FQDN}"
+else
+    echo "  3. ${YELLOW}This is a self-signed testing certificate${RESET} — browsers will warn"
+    echo "     'Not Secure' / 'connection is not private'. That's expected; click through"
+    echo "     (Advanced → Proceed) to reach the app. Once you have a real public domain"
+    echo "     pointing at this server, re-run ${CYAN}sudo ./deploy.sh${RESET} and answer"
+    echo "     'yes' to the production question to get a trusted Let's Encrypt certificate."
+fi
 echo
 echo "${BOLD}Credentials:${RESET}"
 echo "  Jagger DB user/password  : stored in /opt/rr3/application/config/database.php"
