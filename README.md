@@ -77,6 +77,13 @@
 Step-by-step walkthrough for installing Jagger by hand on Debian/Ubuntu. Make
 sure you meet the [Requirements](#requirements) above before starting.
 
+> [!TIP]
+> Prefer not to type all of this in by hand? [`deploy.sh`](deploy.sh) automates
+> every step below on a fresh Debian 13 / Ubuntu 24.04+ host: it auto-detects
+> the server's IP/OS, asks you for the handful of values it can't guess (FQDN,
+> admin email, DB credentials), then runs the full deployment with a progress
+> bar and per-step timing. Run it as root with `sudo ./deploy.sh`.
+
 ### Important Notes
 
 > [!WARNING]
