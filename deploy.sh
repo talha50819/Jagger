@@ -20,6 +20,15 @@
 #   JAGGER_DEPLOY_MODE     "testing" (self-signed cert, default) or "production"
 #                          (real Let's Encrypt cert - needs a public domain
 #                          that already resolves to this server)
+#   JAGGER_DEPLOY_KIND     "fresh" (default when no existing install is found)
+#                          or "migrate" (found automatically when one is -
+#                          only meaningful for -y) - migrate backs up the
+#                          existing database, redeploys fresh code, then
+#                          restores the database into it
+#   JAGGER_MIGRATE_CONFIG  "existing" (default - reuse the detected FQDN,
+#                          admin email, DB settings, and logo) or "new"
+#                          (answer the usual setup questions fresh); only
+#                          used when migrating
 #   JAGGER_DB_NAME         (default: rr3)
 #   JAGGER_DB_USER         (default: rr3user)
 #   JAGGER_DB_PASS         (default: randomly generated)
@@ -543,6 +552,14 @@ step_install_jagger() {
 }
 
 step_jagger_db() {
+    # In migrate mode the target database may still have all its old tables
+    # (nothing has dropped them yet - step_migrate_backup only read from it).
+    # orm:schema-tool:create needs a genuinely empty schema or it errors on
+    # "table already exists", so drop first here; step_migrate_backup's dump
+    # already has everything, and step_migrate_restore reloads it afterward.
+    if [[ "$DEPLOY_KIND" == "migrate" ]]; then
+        mysql --defaults-extra-file="$MYSQL_ROOT_CNF" -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`;"
+    fi
     mysql --defaults-extra-file="$MYSQL_ROOT_CNF" <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
@@ -681,6 +698,82 @@ step_verify() {
     [[ "$code" != "000" ]]
 }
 
+step_migrate_backup() {
+    mkdir -p "$BACKUP_DIR"
+
+    local dbcnf
+    dbcnf=$(mktemp)
+    chmod 600 "$dbcnf"
+    cat >"$dbcnf" <<EOF
+[client]
+user=${OLD_DB_USER}
+password=${OLD_DB_PASS}
+host=127.0.0.1
+EOF
+    # --add-drop-table makes the restore self-sufficient: it can be loaded
+    # straight over whatever schema-tool:create just built without a manual
+    # DROP first, regardless of whether the schema changed in between.
+    mysqldump --defaults-extra-file="$dbcnf" --add-drop-table --routines --triggers "${OLD_DB_NAME}" \
+        | gzip >"$BACKUP_DIR/db.sql.gz"
+
+    mysql --defaults-extra-file="$dbcnf" -N -B \
+        -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${OLD_DB_NAME}';" \
+        >"$BACKUP_DIR/.table_count" 2>/dev/null || echo 0 >"$BACKUP_DIR/.table_count"
+    rm -f "$dbcnf"
+
+    # Preserve a custom logo, since /opt/rr3/images is about to be wiped.
+    # step_migrate_restore picks this back up later regardless of which
+    # config mode was chosen.
+    if [[ -n "$OLD_LOGO_NAME" && "$OLD_LOGO_NAME" != "logo-default.png" && -f "/opt/rr3/images/${OLD_LOGO_NAME}" ]]; then
+        cp "/opt/rr3/images/${OLD_LOGO_NAME}" "$BACKUP_DIR/${OLD_LOGO_NAME}"
+        echo "$OLD_LOGO_NAME" >"$BACKUP_DIR/.logo_name"
+    fi
+
+    echo "Backed up ${OLD_DB_NAME} ($(cat "$BACKUP_DIR/.table_count") tables) to ${BACKUP_DIR}/db.sql.gz"
+}
+
+step_migrate_restore() {
+    local dbcnf
+    dbcnf=$(mktemp)
+    chmod 600 "$dbcnf"
+    cat >"$dbcnf" <<EOF
+[client]
+user=${DB_USER}
+password=${DB_PASS}
+host=127.0.0.1
+EOF
+    gunzip -c "$BACKUP_DIR/db.sql.gz" | mysql --defaults-extra-file="$dbcnf" "${DB_NAME}"
+
+    local post_count pre_count
+    post_count=$(mysql --defaults-extra-file="$dbcnf" -N -B \
+        -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" 2>/dev/null)
+    rm -f "$dbcnf"
+    pre_count=$(cat "$BACKUP_DIR/.table_count" 2>/dev/null || echo 0)
+    echo "Restored ${DB_NAME}: ${pre_count} table(s) backed up, ${post_count} present now."
+    if [[ -z "$post_count" || "$post_count" -lt "$pre_count" ]]; then
+        echo "Table count after restore (${post_count:-0}) is less than before the update (${pre_count}) - something went wrong."
+        return 1
+    fi
+
+    if [[ -f "$BACKUP_DIR/.logo_name" ]]; then
+        local logo_name
+        logo_name=$(cat "$BACKUP_DIR/.logo_name")
+        if [[ -f "$BACKUP_DIR/$logo_name" ]]; then
+            cp "$BACKUP_DIR/$logo_name" "/opt/rr3/images/$logo_name"
+            sed -i "s#^\\\$config\['site_logo'\]\s*=.*#\\\$config['site_logo'] = '${logo_name}';#" /opt/rr3/application/config/config_rr.php
+            chown www-data:www-data "/opt/rr3/images/$logo_name"
+        fi
+    fi
+
+    # step_configure_jagger always generates a fresh encryption_key/syncpass,
+    # but the database just restored above may contain data encrypted with
+    # the OLD key - a fresh one would silently break decrypting it. Put the
+    # originals back, regardless of which config mode was chosen for
+    # FQDN/DB/logo.
+    [[ -n "${OLD_ENCRYPTION_KEY:-}" ]] && sed -i "s#^\\\$config\['encryption_key'\]\s*=.*#\\\$config['encryption_key'] = '${OLD_ENCRYPTION_KEY}';#" /opt/rr3/application/config/config.php
+    [[ -n "${OLD_SYNCPASS:-}" ]] && sed -i "s#^\\\$config\['syncpass'\]\s*=.*#\\\$config['syncpass'] = '${OLD_SYNCPASS}';#" /opt/rr3/application/config/config_rr.php
+}
+
 # ----------------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------------
@@ -688,7 +781,7 @@ for arg in "$@"; do
     case "$arg" in
         -y|--yes) ASSUME_YES=1 ;;
         -h|--help)
-            sed -n '2,30p' "${BASH_SOURCE[0]}"
+            sed -n '2,39p' "${BASH_SOURCE[0]}"
             exit 0
             ;;
         *) die "Unknown option: ${arg} (use --help)" ;;
@@ -714,9 +807,65 @@ if [[ "$OS_ID" != "debian" && "$OS_ID" != "ubuntu" ]]; then
     confirm "Continue anyway?" N || exit 1
 fi
 
-if [[ -d /opt/rr3 ]]; then
-    echo "${YELLOW}Warning:${RESET} /opt/rr3 already exists - it looks like Jagger may already be installed."
-    confirm "Remove it and redeploy from scratch?" N || exit 1
+EXISTING_INSTALL=0
+[[ -d /opt/rr3 && -f /opt/rr3/application/config/config.php && -f /opt/rr3/application/config/database.php && -f /opt/rr3/application/config/config_rr.php ]] && EXISTING_INSTALL=1
+
+DEPLOY_KIND="fresh"
+if [[ "$EXISTING_INSTALL" -eq 1 ]]; then
+    echo "${YELLOW}An existing Jagger install was found at /opt/rr3.${RESET}"
+    if [[ "$ASSUME_YES" -eq 1 ]]; then
+        DEPLOY_KIND="${JAGGER_DEPLOY_KIND:-migrate}"
+    else
+        echo "  ${DIM}migrate - back up its database, redeploy fresh code, then restore the data.${RESET}"
+        echo "  ${DIM}fresh   - wipe it and start over with no existing data.${RESET}"
+        if confirm "Migrate the existing environment instead of a fresh install?" Y; then
+            DEPLOY_KIND="migrate"
+        else
+            confirm "Confirm: wipe the existing install and start completely fresh?" N || exit 1
+            DEPLOY_KIND="fresh"
+        fi
+    fi
+elif [[ -d /opt/rr3 ]]; then
+    echo "${YELLOW}Warning:${RESET} /opt/rr3 exists but doesn't look like a complete Jagger install (missing config files)."
+    confirm "Remove it and start fresh?" N || exit 1
+fi
+
+MIGRATE_CONFIG_MODE=""
+if [[ "$DEPLOY_KIND" == "migrate" ]]; then
+    OLD_CONFIG_DIR="/opt/rr3/application/config"
+    OLD_FQDN=$(grep -oP "base_url'\]\s*=\s*'https://\K[^/]+" "$OLD_CONFIG_DIR/config.php" || true)
+    OLD_DB_NAME=$(grep -oP "\['database'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/database.php" || true)
+    OLD_DB_USER=$(grep -oP "\['username'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/database.php" || true)
+    OLD_DB_PASS=$(grep -oP "\['password'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/database.php" || true)
+    OLD_ENCRYPTION_KEY=$(grep -oP "encryption_key'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/config.php" || true)
+    OLD_SYNCPASS=$(grep -oP "syncpass'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/config_rr.php" || true)
+    OLD_LOGO_NAME=$(grep -oP "site_logo'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/config_rr.php" || true)
+    OLD_ADMIN_EMAIL=$(grep -rhoP "ServerAdmin\s+\K\S+" /etc/apache2/sites-available/ 2>/dev/null | head -1 || true)
+
+    [[ -n "$OLD_FQDN" && -n "$OLD_DB_NAME" && -n "$OLD_DB_USER" ]] \
+        || die "Couldn't detect the existing install's FQDN/DB settings from its config files - is /opt/rr3 a deploy.sh-managed install?"
+
+    echo
+    echo "${BOLD}Detected existing environment${RESET}"
+    hr
+    print_kv "FQDN"     "$OLD_FQDN"
+    print_kv "Database" "${OLD_DB_NAME} (user: ${OLD_DB_USER})"
+    hr
+    echo
+
+    if [[ "$ASSUME_YES" -eq 1 ]]; then
+        MIGRATE_CONFIG_MODE="${JAGGER_MIGRATE_CONFIG:-existing}"
+    else
+        echo "${BOLD}Configuration for the migrated environment${RESET}"
+        echo "  ${DIM}existing - reuse the detected FQDN, admin email, DB settings, and logo as-is.${RESET}"
+        echo "  ${DIM}new      - answer the usual setup questions fresh, even though you're migrating.${RESET}"
+        if confirm "Perform NEW configuration instead of reusing the existing one?" N; then
+            MIGRATE_CONFIG_MODE="new"
+        else
+            MIGRATE_CONFIG_MODE="existing"
+        fi
+    fi
+    echo
 fi
 
 # --- Auto-detected info ----------------------------------------------------
@@ -747,9 +896,19 @@ fi
 # --- Interactive questions --------------------------------------------------
 echo "${BOLD}Deployment settings${RESET}"
 hr
-ask "Fully Qualified Domain Name for Jagger" "${JAGGER_FQDN:-}" FQDN '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$'
-ask "Short hostname for this server" "${JAGGER_HOSTNAME:-${FQDN%%.*}}" SHORT_HOSTNAME
-ask "Admin/contact email (Let's Encrypt + Apache)" "${JAGGER_ADMIN_EMAIL:-}" ADMIN_EMAIL '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+if [[ "$MIGRATE_CONFIG_MODE" == "existing" ]]; then
+    FQDN="$OLD_FQDN"
+    SHORT_HOSTNAME="${JAGGER_HOSTNAME:-${FQDN%%.*}}"
+    ADMIN_EMAIL="${OLD_ADMIN_EMAIL:-${JAGGER_ADMIN_EMAIL:-admin@${FQDN}}}"
+    echo "Reusing existing FQDN, hostname, and admin email:"
+    print_kv "FQDN"         "$FQDN"
+    print_kv "Hostname"     "$SHORT_HOSTNAME"
+    print_kv "Admin email"  "$ADMIN_EMAIL"
+else
+    ask "Fully Qualified Domain Name for Jagger" "${JAGGER_FQDN:-}" FQDN '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$'
+    ask "Short hostname for this server" "${JAGGER_HOSTNAME:-${FQDN%%.*}}" SHORT_HOSTNAME
+    ask "Admin/contact email (Let's Encrypt + Apache)" "${JAGGER_ADMIN_EMAIL:-}" ADMIN_EMAIL '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+fi
 
 DEPLOY_MODE="${JAGGER_DEPLOY_MODE:-testing}"
 if [[ "$ASSUME_YES" -ne 1 ]]; then
@@ -771,9 +930,16 @@ else
     SSL_EXTRA_CONF=$'    SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1\n    SSLCipherSuite HIGH:!aNULL:!MD5'
 fi
 
-ask "Jagger database name" "${JAGGER_DB_NAME:-rr3}" DB_NAME
-ask "Jagger database user" "${JAGGER_DB_USER:-rr3user}" DB_USER
-ask_secret "Jagger database password" DB_PASS "${JAGGER_DB_PASS:-}"
+if [[ "$MIGRATE_CONFIG_MODE" == "existing" ]]; then
+    DB_NAME="$OLD_DB_NAME"
+    DB_USER="$OLD_DB_USER"
+    DB_PASS="$OLD_DB_PASS"
+    print_kv "Database" "${DB_NAME} (user: ${DB_USER})"
+else
+    ask "Jagger database name" "${JAGGER_DB_NAME:-rr3}" DB_NAME
+    ask "Jagger database user" "${JAGGER_DB_USER:-rr3user}" DB_USER
+    ask_secret "Jagger database password" DB_PASS "${JAGGER_DB_PASS:-}"
+fi
 ask_secret "New MySQL root password" MYSQL_ROOT_PASS "${JAGGER_MYSQL_ROOT_PASS:-}"
 
 USE_MIRROR=0
@@ -790,19 +956,25 @@ if [[ "$USE_MIRROR" -eq 1 ]]; then
 fi
 
 LOGO_PATH="${JAGGER_LOGO_PATH:-}"
-if [[ "$ASSUME_YES" -ne 1 ]]; then
-    ask_optional "Path to a site logo PNG (optional)" LOGO_PATH
-fi
-if [[ -n "$LOGO_PATH" && ! -f "$LOGO_PATH" ]]; then
-    echo "${YELLOW}Logo file not found at '${LOGO_PATH}' - skipping.${RESET}"
-    LOGO_PATH=""
+if [[ "$MIGRATE_CONFIG_MODE" == "existing" ]]; then
+    echo "${DIM}Keeping the existing logo, if any (restored automatically after redeploy).${RESET}"
+else
+    if [[ "$ASSUME_YES" -ne 1 ]]; then
+        ask_optional "Path to a site logo PNG (optional)" LOGO_PATH
+    fi
+    if [[ -n "$LOGO_PATH" && ! -f "$LOGO_PATH" ]]; then
+        echo "${YELLOW}Logo file not found at '${LOGO_PATH}' - skipping.${RESET}"
+        LOGO_PATH=""
+    fi
 fi
 
 MYSQL_ROOT_CNF="/root/.jagger-mysql-root.cnf"
+BACKUP_DIR="/var/backups/jagger/$(date +%Y%m%d-%H%M%S)"
 
 echo
 echo "${BOLD}Summary${RESET}"
 hr
+print_kv "Deployment"      "$([[ $DEPLOY_KIND == migrate ]] && echo "migrate (${MIGRATE_CONFIG_MODE} config)" || echo "fresh")"
 print_kv "FQDN"            "$FQDN"
 print_kv "Hostname"        "$SHORT_HOSTNAME"
 print_kv "Admin email"     "$ADMIN_EMAIL"
@@ -811,6 +983,7 @@ print_kv "Database"        "${DB_NAME} (user: ${DB_USER})"
 print_kv "APT mirror"      "$([[ $USE_MIRROR -eq 1 ]] && echo "${MIRROR_URL}" || echo "default")"
 print_kv "Logo"            "${LOGO_PATH:-default}"
 print_kv "Source"          "$([[ $USE_LOCAL_CHECKOUT -eq 1 ]] && echo "local checkout (${SCRIPT_DIR})" || echo "github.com/Edugate/Jagger")"
+[[ "$DEPLOY_KIND" == "migrate" ]] && print_kv "Backup to" "$BACKUP_DIR"
 print_kv "Log file"        "$LOG_FILE"
 hr
 echo
@@ -820,6 +993,27 @@ confirm "Start deployment now?" Y || { echo "Aborted."; exit 0; }
 # --- Run steps ---------------------------------------------------------
 : >"$LOG_FILE"
 chmod 600 "$LOG_FILE"
+
+# Two extra steps bookend the normal sequence when migrating: a backup right
+# at the start (before anything is touched) and a restore right after the
+# schema is (re)created near the end.
+if [[ "$DEPLOY_KIND" == "migrate" ]]; then
+    STEP_TOTAL=18
+    STEP_WEIGHTS=(20 2 2 60 15 20 15 10 300 60 90 5 5 10 15 20 10 3)
+    # Once the backup step below completes, any later step failing should
+    # still point straight at it rather than only mentioning it in a
+    # successful run's closing summary.
+    on_step_failure() {
+        echo
+        echo "${BOLD}Your pre-migration backup (if the backup step itself completed) is here:${RESET}"
+        echo "  ${CYAN}${BACKUP_DIR}${RESET}"
+        [[ -f "${BACKUP_DIR}/db.sql.gz" ]] && echo "  Restore DB: gunzip -c ${BACKUP_DIR}/db.sql.gz | mysql --user=${OLD_DB_USER} -p --host=127.0.0.1 ${OLD_DB_NAME}"
+    }
+    run_step "Back up existing database"             step_migrate_backup
+else
+    STEP_TOTAL=16
+    STEP_WEIGHTS=(2 2 60 15 20 15 10 300 60 90 5 5 10 15 10 3)
+fi
 
 run_step "Set hostname & /etc/hosts"                 step_hostname
 run_step "Configure APT mirror"                      step_apt_mirror
@@ -839,6 +1033,9 @@ run_step "Create Jagger database & user"             step_jagger_db
 run_step "Configure Jagger application files"        step_configure_jagger
 run_step "Apply PHP 8.4 compatibility fixes"         step_php_compat
 run_step "Populate database schema (Doctrine)"       step_doctrine
+if [[ "$DEPLOY_KIND" == "migrate" ]]; then
+    run_step "Restore database"                      step_migrate_restore
+fi
 run_step "Finalize Apache virtual host (SSL)"        step_finalize_vhost
 run_step "Verify deployment"                         step_verify
 
@@ -855,9 +1052,17 @@ done
 hr
 echo
 echo "${BOLD}Next steps (manual - cannot be automated):${RESET}"
-echo "  1. Visit ${CYAN}https://${FQDN}/rr3/setup${RESET} and create the initial admin user."
-echo "  2. Then edit ${CYAN}/opt/rr3/application/config/config_rr.php${RESET} and set:"
-echo "         \$config['rr_setup_allowed'] = FALSE;"
+if [[ "$DEPLOY_KIND" == "migrate" ]]; then
+    echo "  1. Your restored data already has its admin user(s) - sign in as usual at:"
+    echo "         ${CYAN}https://${FQDN}/rr3${RESET}"
+    echo "  2. The redeploy re-enabled setup mode - edit"
+    echo "     ${CYAN}/opt/rr3/application/config/config_rr.php${RESET} and set:"
+    echo "         \$config['rr_setup_allowed'] = FALSE;"
+else
+    echo "  1. Visit ${CYAN}https://${FQDN}/rr3/setup${RESET} and create the initial admin user."
+    echo "  2. Then edit ${CYAN}/opt/rr3/application/config/config_rr.php${RESET} and set:"
+    echo "         \$config['rr_setup_allowed'] = FALSE;"
+fi
 if [[ "$DEPLOY_MODE" == "production" ]]; then
     echo "  3. Check your SSL grade: https://www.ssllabs.com/ssltest/analyze.html?d=${FQDN}"
 else
@@ -871,5 +1076,9 @@ echo
 echo "${BOLD}Credentials:${RESET}"
 echo "  Jagger DB user/password  : stored in /opt/rr3/application/config/database.php"
 echo "  MySQL root password      : stored in ${MYSQL_ROOT_CNF} (chmod 600, root-only)"
+if [[ "$DEPLOY_KIND" == "migrate" ]]; then
+    echo
+    echo "${BOLD}Pre-migration database backup:${RESET} ${CYAN}${BACKUP_DIR}${RESET}"
+fi
 echo
 echo "${DIM}Full log: ${LOG_FILE}${RESET}"

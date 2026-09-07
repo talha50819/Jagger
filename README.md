@@ -80,6 +80,14 @@ deployment (default — a self-signed certificate, works with any hostname,
 e.g. inside a VM) or a **production** one (a real Let's Encrypt certificate,
 which needs a public domain that already resolves to this server).
 
+If it finds an existing install at `/opt/rr3`, it asks whether to do a
+**fresh** install (wipe it) or **migrate** the existing environment: back up
+its database, redeploy fresh code, then restore the database into it. When
+migrating you also choose whether to reuse the detected FQDN/admin
+email/DB settings/logo as-is, or answer the setup questions fresh — either
+way the encryption key and sync password are carried over rather than
+regenerated, since a fresh key would break decrypting the restored data.
+
 > [!TIP]
 > For a non-interactive/scripted run, pass `-y` and set the `JAGGER_*`
 > environment variables described at the top of [`deploy.sh`](deploy.sh)
