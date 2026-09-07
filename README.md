@@ -104,6 +104,29 @@ below.
 
 ### Updating Jagger
 
+[`update.sh`](update.sh) automates this: it backs up your database, config
+files, and app code, redeploys fresh code, lets you choose whether to keep
+your exact old config or regenerate it from the updated code's own defaults
+(your FQDN, DB settings, encryption key, and sync password are preserved
+either way), then migrates the database schema. Run it next to `deploy.sh`
+on the server:
+
+```bash
+cd Jagger
+git pull
+sudo ./update.sh
+```
+
+> [!TIP]
+> Non-interactively: `sudo ./update.sh -y` (keeps your old config) or
+> `sudo ./update.sh -y --config=new` (regenerates config from the new
+> defaults). See `sudo ./update.sh --help`.
+
+Afterwards, sign in and trigger the app's own upgrade routine by visiting
+`https://<your-fqdn>/rr3/update/upgrade`.
+
+#### Manually
+
 > [!WARNING]
 > **Always back up your code and database before performing an update.**
 
