@@ -473,7 +473,21 @@ step_xmlsectool() {
 exec java -cp '/opt/xmlsectool/xmlsectool-${ver}/lib/*' -Dnet.shibboleth.tool.xmlsectool.XMLSecTool.home='/opt/xmlsectool/xmlsectool-${ver}' net.shibboleth.tool.xmlsectool.XMLSecTool "\$@"
 EOF
     chmod +x /usr/local/bin/xmlsectool
-    xmlsectool --help >/dev/null
+
+    # There's no --help/-help option in this tool (it uses JCommander with
+    # only functional options like --inFile/--xsd/--verifySignature), so
+    # invoking it to "verify" would just exit non-zero on a missing-argument
+    # error that looks identical to a real installation failure. Check the
+    # files directly instead: that the real tool jar landed where the
+    # wrapper expects it, and that the wrapper itself is on PATH.
+    [[ -f "/opt/xmlsectool/xmlsectool-${ver}/lib/xmlsectool-${ver}.jar" ]] || {
+        echo "xmlsectool-${ver}.jar not found under lib/ after extraction."
+        return 1
+    }
+    command -v xmlsectool >/dev/null || {
+        echo "/usr/local/bin/xmlsectool was not created correctly."
+        return 1
+    }
 }
 
 step_install_jagger() {

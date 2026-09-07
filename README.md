@@ -350,8 +350,16 @@ sudo apt install apache2
    ```
 5. Verify installation:
    ```bash
-   xmlsectool --help
+   ls /opt/xmlsectool/xmlsectool-4.0.0/lib/xmlsectool-4.0.0.jar
+   xmlsectool
    ```
+   > [!NOTE]
+   > There's no `--help`/`-help` option — running `xmlsectool` with no
+   > arguments will exit with a "required option missing" style error (it
+   > uses JCommander, which only defines functional options like `--inFile`
+   > and `--xsd`). That error is actually what a **working** install looks
+   > like; a broken one shows `Error: Unable to access jarfile` or
+   > `NoClassDefFoundError` instead.
 
 ---
 
