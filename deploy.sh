@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — Automated installer for Jagger (Debian 13 / Ubuntu 24.04+ LTS)
+# deploy.sh - Automated installer for Jagger (Debian 13 / Ubuntu 24.04+ LTS)
 #
 # This script performs, end-to-end, everything described in the manual
 # installation guide in README.md: hostname/mirror setup, MySQL, Apache,
@@ -18,7 +18,7 @@
 #   JAGGER_ADMIN_EMAIL     e.g. admin@example.org             (required for -y)
 #   JAGGER_HOSTNAME        short hostname (default: first label of the FQDN)
 #   JAGGER_DEPLOY_MODE     "testing" (self-signed cert, default) or "production"
-#                          (real Let's Encrypt cert — needs a public domain
+#                          (real Let's Encrypt cert - needs a public domain
 #                          that already resolves to this server)
 #   JAGGER_DB_NAME         (default: rr3)
 #   JAGGER_DB_USER         (default: rr3user)
@@ -54,11 +54,29 @@ else
 fi
 
 # ----------------------------------------------------------------------------
+# Glyphs - the bare Linux VT console (TERM=linux, e.g. a hypervisor's console
+# tab with no GUI terminal emulator attached) generally lacks the Unicode
+# block-drawing/braille glyphs, and silently collapses several different
+# characters onto the same fallback glyph (which is what made the progress
+# bar look permanently "full"). Detect that and fall back to plain ASCII.
+# ----------------------------------------------------------------------------
+if [[ "${TERM:-}" != "linux" ]] && locale charmap 2>/dev/null | grep -qi 'utf-*8'; then
+    CHECK="✔"; CROSS="✘"; ARROW="➤"; BAR_FULL="█"; BAR_EMPTY="░"
+    SPIN_FRAMES='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    HR_CHAR="─"
+else
+    CHECK="OK"; CROSS="X"; ARROW=">"; BAR_FULL="#"; BAR_EMPTY="-"
+    SPIN_FRAMES='|/-\'
+    HR_CHAR="-"
+fi
+
+# ----------------------------------------------------------------------------
 # Small helpers
 # ----------------------------------------------------------------------------
 banner() {
     printf "%s\n" "${CYAN}${BOLD}"
-    cat <<'EOF'
+    if [[ "$BAR_FULL" == "█" ]]; then
+        cat <<'EOF'
      ██╗ █████╗  ██████╗  ██████╗ ███████╗██████╗
      ██║██╔══██╗██╔════╝ ██╔════╝ ██╔════╝██╔══██╗
      ██║███████║██║  ███╗██║  ███╗█████╗  ██████╔╝
@@ -66,17 +84,30 @@ banner() {
 ╚█████╔╝██║  ██║╚██████╔╝╚██████╔╝███████╗██║  ██║
  ╚════╝ ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝
 EOF
-    printf "%s\n" "${RESET}${DIM}          Automated deployment — Debian 13 / Ubuntu 24.04+${RESET}"
+    else
+        cat <<'EOF'
+     _   _   ____   ____ _____ ____
+    | | / \ / ___| / ___| ____|  _ \
+ _  | |/ _ \| |  _| |  _|  _| | |_) |
+| |_| / ___ \ |_| | |_| | |___|  _ <
+ \___/_/   \_\____|\____|_____|_| \_\
+EOF
+    fi
+    printf "%s\n" "${RESET}${DIM}          Automated deployment - Debian 13 / Ubuntu 24.04+${RESET}"
     echo
 }
 
-hr() { printf "%s\n" "${DIM}────────────────────────────────────────────────────────────────${RESET}"; }
+hr() {
+    local line
+    printf -v line '%*s' 68 ''
+    printf "%s\n" "${DIM}${line// /$HR_CHAR}${RESET}"
+}
 
 log_only() { echo "$(date '+%H:%M:%S') $*" >>"$LOG_FILE"; }
 
 die() {
     echo
-    echo "${RED}${BOLD}✘ $*${RESET}" >&2
+    echo "${RED}${BOLD}${CROSS:-x} $*${RESET}" >&2
     exit 1
 }
 
@@ -144,7 +175,7 @@ ask_secret() {
     else
         read -rs -p "  confirm > " p2; echo
         if [[ "$p1" != "$p2" ]]; then
-            echo "  ${RED}Passwords did not match — generating a random one instead.${RESET}"
+            echo "  ${RED}Passwords did not match - generating a random one instead.${RESET}"
             p1="$(gen_password)"
             echo "  ${GREEN}Generated:${RESET} ${p1}"
         fi
@@ -187,18 +218,17 @@ draw_progress() {
     local filled=$(( current * width / total ))
     local empty=$(( width - filled ))
     local bar=""
-    [[ $filled -gt 0 ]] && bar+=$(printf '%*s' "$filled" '' | tr ' ' '█')
-    [[ $empty -gt 0 ]] && bar+=$(printf '%*s' "$empty" '' | tr ' ' '░')
+    [[ $filled -gt 0 ]] && bar+=$(printf '%*s' "$filled" '' | tr ' ' "$BAR_FULL")
+    [[ $empty -gt 0 ]] && bar+=$(printf '%*s' "$empty" '' | tr ' ' "$BAR_EMPTY")
     local pct=$(( current * 100 / total ))
     printf "${CYAN}[%s]${RESET} %3d%% ${DIM}step %d/%d${RESET}" "$bar" "$pct" "$current" "$total"
 }
 
 spin_wait() {
     local pid=$1 label=$2
-    local frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local i=0 start=$SECONDS
     while kill -0 "$pid" 2>/dev/null; do
-        local frame="${frames:i%${#frames}:1}"
+        local frame="${SPIN_FRAMES:i%${#SPIN_FRAMES}:1}"
         i=$((i + 1))
         local elapsed=$(( SECONDS - start ))
         printf "\r  ${CYAN}%s${RESET} %s ${DIM}(%s)${RESET}%*s" "$frame" "$label" "$(format_hms "$elapsed")" 10 ""
@@ -209,10 +239,17 @@ spin_wait() {
 run_step() {
     # run_step "Human description" function_name
     local desc="$1" fn="$2"
+    local completed=$STEP_CURRENT
     STEP_CURRENT=$((STEP_CURRENT + 1))
     echo
-    draw_progress "$STEP_CURRENT" "$STEP_TOTAL"; echo
-    echo "${BOLD}${WHITE}➤ ${desc}${RESET}"
+    draw_progress "$STEP_CURRENT" "$STEP_TOTAL"
+    if [[ $completed -gt 0 ]]; then
+        local avg=$(( SECONDS / completed ))
+        local remaining=$(( avg * (STEP_TOTAL - completed) ))
+        printf " ${DIM}- ETA ~%s${RESET}" "$(format_hms "$remaining")"
+    fi
+    echo
+    echo "${BOLD}${WHITE}${ARROW} ${desc}${RESET}"
     log_only "==== STEP ${STEP_CURRENT}/${STEP_TOTAL}: ${desc} ===="
 
     local t0=$SECONDS rc=0
@@ -223,17 +260,17 @@ run_step() {
     local dt=$(( SECONDS - t0 ))
 
     if [[ $rc -eq 0 ]]; then
-        printf "\r  ${GREEN}✔${RESET} %s ${DIM}done in %s${RESET}%*s\n" "$desc" "$(format_hms "$dt")" 15 ""
+        printf "\r  ${GREEN}%s${RESET} %s ${DIM}done in %s${RESET}%*s\n" "$CHECK" "$desc" "$(format_hms "$dt")" 15 ""
         STEP_TIMES+=("${desc}|${dt}")
     else
-        printf "\r  ${RED}✘${RESET} %s ${DIM}failed after %s${RESET}%*s\n" "$desc" "$(format_hms "$dt")" 15 ""
+        printf "\r  ${RED}%s${RESET} %s ${DIM}failed after %s${RESET}%*s\n" "$CROSS" "$desc" "$(format_hms "$dt")" 15 ""
         echo
         echo "${RED}${BOLD}Deployment stopped at step ${STEP_CURRENT}/${STEP_TOTAL}: ${desc}${RESET}"
         echo "${DIM}Last 25 lines of ${LOG_FILE}:${RESET}"
         hr
         tail -n 25 "$LOG_FILE" || true
         hr
-        echo "Fix the issue above and re-run ./deploy.sh — earlier steps are safe to repeat."
+        echo "Fix the issue above and re-run ./deploy.sh - earlier steps are safe to repeat."
         exit "$rc"
     fi
 }
@@ -276,7 +313,7 @@ step_hostname() {
 
 step_apt_mirror() {
     if [[ "$USE_MIRROR" -ne 1 ]]; then
-        echo "Alternate mirror not requested — skipping."
+        echo "Alternate mirror not requested - skipping."
         return 0
     fi
     if [[ "$OS_ID" == "debian" ]]; then
@@ -630,7 +667,7 @@ banner
 require_root
 
 # --- OS detection --------------------------------------------------------
-[[ -f /etc/os-release ]] || die "Cannot find /etc/os-release — this doesn't look like Debian or Ubuntu."
+[[ -f /etc/os-release ]] || die "Cannot find /etc/os-release - this doesn't look like Debian or Ubuntu."
 # shellcheck disable=SC1091
 source /etc/os-release
 OS_ID="$ID"
@@ -643,7 +680,7 @@ if [[ "$OS_ID" != "debian" && "$OS_ID" != "ubuntu" ]]; then
 fi
 
 if [[ -d /opt/rr3 ]]; then
-    echo "${YELLOW}Warning:${RESET} /opt/rr3 already exists — it looks like Jagger may already be installed."
+    echo "${YELLOW}Warning:${RESET} /opt/rr3 already exists - it looks like Jagger may already be installed."
     confirm "Remove it and redeploy from scratch?" N || exit 1
 fi
 
@@ -668,7 +705,7 @@ echo
 USE_LOCAL_CHECKOUT=0
 [[ -f "${SCRIPT_DIR}/install.sh" && -d "${SCRIPT_DIR}/application/config" ]] && USE_LOCAL_CHECKOUT=1
 if [[ "$USE_LOCAL_CHECKOUT" -eq 1 ]]; then
-    echo "${DIM}Running from inside a Jagger checkout — this exact copy will be deployed to /opt/rr3 (instead of a fresh git clone).${RESET}"
+    echo "${DIM}Running from inside a Jagger checkout - this exact copy will be deployed to /opt/rr3 (instead of a fresh git clone).${RESET}"
     echo
 fi
 
@@ -683,8 +720,8 @@ DEPLOY_MODE="${JAGGER_DEPLOY_MODE:-testing}"
 if [[ "$ASSUME_YES" -ne 1 ]]; then
     echo
     echo "${BOLD}Certificate mode${RESET}"
-    echo "  ${DIM}testing    — self-signed cert, works instantly with any hostname (VMs, local testing)${RESET}"
-    echo "  ${DIM}production — a real, trusted Let's Encrypt cert (needs a public domain already pointing here)${RESET}"
+    echo "  ${DIM}testing    - self-signed cert, works instantly with any hostname (VMs, local testing)${RESET}"
+    echo "  ${DIM}production - a real, trusted Let's Encrypt cert (needs a public domain already pointing here)${RESET}"
     if confirm "Is this a production deployment with a real public domain?" N; then
         DEPLOY_MODE="production"
     fi
@@ -722,7 +759,7 @@ if [[ "$ASSUME_YES" -ne 1 ]]; then
     ask_optional "Path to a site logo PNG (optional)" LOGO_PATH
 fi
 if [[ -n "$LOGO_PATH" && ! -f "$LOGO_PATH" ]]; then
-    echo "${YELLOW}Logo file not found at '${LOGO_PATH}' — skipping.${RESET}"
+    echo "${YELLOW}Logo file not found at '${LOGO_PATH}' - skipping.${RESET}"
     LOGO_PATH=""
 fi
 
@@ -774,7 +811,7 @@ run_step "Verify deployment"                         step_verify
 TOTAL_TIME=$SECONDS
 echo
 hr
-echo "${GREEN}${BOLD}✔ Jagger deployment finished in $(format_hms "$TOTAL_TIME")${RESET}"
+echo "${GREEN}${BOLD}${CHECK} Jagger deployment finished in $(format_hms "$TOTAL_TIME")${RESET}"
 hr
 for entry in "${STEP_TIMES[@]}"; do
     IFS='|' read -r name dur <<<"$entry"
@@ -782,16 +819,16 @@ for entry in "${STEP_TIMES[@]}"; do
 done
 hr
 echo
-echo "${BOLD}Next steps (manual — cannot be automated):${RESET}"
+echo "${BOLD}Next steps (manual - cannot be automated):${RESET}"
 echo "  1. Visit ${CYAN}https://${FQDN}/rr3/setup${RESET} and create the initial admin user."
 echo "  2. Then edit ${CYAN}/opt/rr3/application/config/config_rr.php${RESET} and set:"
 echo "         \$config['rr_setup_allowed'] = FALSE;"
 if [[ "$DEPLOY_MODE" == "production" ]]; then
     echo "  3. Check your SSL grade: https://www.ssllabs.com/ssltest/analyze.html?d=${FQDN}"
 else
-    echo "  3. ${YELLOW}This is a self-signed testing certificate${RESET} — browsers will warn"
+    echo "  3. ${YELLOW}This is a self-signed testing certificate${RESET} - browsers will warn"
     echo "     'Not Secure' / 'connection is not private'. That's expected; click through"
-    echo "     (Advanced → Proceed) to reach the app. Once you have a real public domain"
+    echo "     (Advanced -> Proceed) to reach the app. Once you have a real public domain"
     echo "     pointing at this server, re-run ${CYAN}sudo ./deploy.sh${RESET} and answer"
     echo "     'yes' to the production question to get a trusted Let's Encrypt certificate."
 fi
