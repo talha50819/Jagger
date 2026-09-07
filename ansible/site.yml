@@ -7,5 +7,13 @@
   # since "all" includes it too.
   hosts: all
   become: true
+  # A freshly booted Ubuntu/Debian host often has unattended-upgrades running
+  # in the background, holding the dpkg lock for several minutes while it
+  # applies automatic updates. The apt module's own default lock wait (60s)
+  # isn't enough to ride that out, so every apt task in this role waits up
+  # to 5 minutes for the lock instead of failing outright.
+  module_defaults:
+    ansible.builtin.apt:
+      lock_timeout: 300
   roles:
     - jagger
