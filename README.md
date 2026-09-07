@@ -330,13 +330,19 @@ sudo apt install apache2
    > hangs or dies partway through, just retry — it doesn't resume from
    > scratch each time if you add `-c` (`wget -c https://...`).
 3. Create a wrapper script for global execution:
+   > [!NOTE]
+   > The 4.0.0 binary release has no standalone `xmlsectool.jar` — it only
+   > ships `lib/*.jar` plus its own `xmlsectool.sh`, which builds a classpath
+   > from that `lib/` directory and invokes the tool's main class directly.
+   > `java -jar .../xmlsectool.jar` (as older versions of this guide said)
+   > will fail with `Error: Unable to access jarfile`.
    ```bash
    sudo nano /usr/local/bin/xmlsectool
    ```
    Add the following content:
    ```bash
    #!/bin/bash
-   java -jar /opt/xmlsectool/xmlsectool-4.0.0/xmlsectool.jar "$@"
+   exec java -cp '/opt/xmlsectool/xmlsectool-4.0.0/lib/*' -Dnet.shibboleth.tool.xmlsectool.XMLSecTool.home='/opt/xmlsectool/xmlsectool-4.0.0' net.shibboleth.tool.xmlsectool.XMLSecTool "$@"
    ```
 4. Make the script executable:
    ```bash

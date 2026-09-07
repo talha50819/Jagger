@@ -463,9 +463,14 @@ step_xmlsectool() {
         chown -R root:root /opt/xmlsectool
     fi
 
+    # The 4.0.0 binary release has no standalone xmlsectool.jar - it only
+    # ships lib/*.jar plus its own xmlsectool.sh, which builds a classpath
+    # from that lib/ directory and invokes the main class directly. We do
+    # the same via java's wildcard classpath instead of relying on
+    # xmlsectool.sh, which additionally requires $JAVA_HOME to be set.
     cat >/usr/local/bin/xmlsectool <<EOF
 #!/bin/bash
-java -jar /opt/xmlsectool/xmlsectool-${ver}/xmlsectool.jar "\$@"
+exec java -cp '/opt/xmlsectool/xmlsectool-${ver}/lib/*' -Dnet.shibboleth.tool.xmlsectool.XMLSecTool.home='/opt/xmlsectool/xmlsectool-${ver}' net.shibboleth.tool.xmlsectool.XMLSecTool "\$@"
 EOF
     chmod +x /usr/local/bin/xmlsectool
     xmlsectool --help >/dev/null
