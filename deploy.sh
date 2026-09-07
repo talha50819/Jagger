@@ -277,12 +277,16 @@ run_step() {
     else
         printf "\r  ${RED}%s${RESET} %s ${DIM}failed after %s${RESET}%*s\n" "$CROSS" "$desc" "$(format_hms "$dt")" 15 ""
         echo
-        echo "${RED}${BOLD}Deployment stopped at step ${STEP_CURRENT}/${STEP_TOTAL}: ${desc}${RESET}"
+        echo "${RED}${BOLD}${OP_NAME:-Deployment} stopped at step ${STEP_CURRENT}/${STEP_TOTAL}: ${desc}${RESET}"
         echo "${DIM}Last 25 lines of ${LOG_FILE}:${RESET}"
         hr
         tail -n 25 "$LOG_FILE" || true
         hr
-        echo "Fix the issue above and re-run ./deploy.sh - earlier steps are safe to repeat."
+        # A sourcing script (e.g. update.sh) can define on_step_failure to
+        # print its own extra context here (backup location, etc) before
+        # this exits.
+        declare -f on_step_failure >/dev/null && on_step_failure
+        echo "Fix the issue above and re-run ${OP_SCRIPT:-./deploy.sh} - earlier steps are safe to repeat."
         exit "$rc"
     fi
 }

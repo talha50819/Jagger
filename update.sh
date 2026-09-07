@@ -34,16 +34,35 @@ source <(awk '/^# Main$/{exit} {print}' "$DEPLOY_SH")
 
 # The source above clobbers SCRIPT_DIR (process substitution has no real
 # path of its own) and deploy.sh's own step count/weights - reset for this
-# script's own 6-step flow.
+# script's own 7-step flow. OP_NAME/OP_SCRIPT retarget run_step's failure
+# message, which otherwise says "Deployment stopped... re-run ./deploy.sh"
+# even when it's update.sh that failed.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/var/log/jagger-update-$(date +%Y%m%d-%H%M%S).log"
-STEP_TOTAL=6
+STEP_TOTAL=7
 STEP_CURRENT=0
 STEP_TIMES=()
-STEP_WEIGHTS=(30 90 10 10 15 5)
+STEP_WEIGHTS=(30 90 10 10 5 15 5)
 ASSUME_YES=0
 SECONDS=0
 CONFIG_MODE=""
+OP_NAME="Update"
+OP_SCRIPT="./update.sh"
+
+# Called by run_step (from deploy.sh) right before it exits on a failed
+# step, so whoever hits a failure sees the backup location and rollback
+# commands immediately instead of only in a successful run's summary.
+on_step_failure() {
+    echo
+    echo "${BOLD}Your update snapshot (whatever of it completed) is here:${RESET}"
+    echo "  ${CYAN}${BACKUP_DIR:-<not yet created>}${RESET}"
+    [[ -n "${BACKUP_DIR:-}" && -f "${BACKUP_DIR}/db.sql.gz" ]] && \
+        echo "  Restore DB     : gunzip -c ${BACKUP_DIR}/db.sql.gz | mysql --user=${DB_USER} -p --host=127.0.0.1 ${DB_NAME}"
+    [[ -n "${BACKUP_DIR:-}" && -f "${BACKUP_DIR}/app.tar.gz" ]] && \
+        echo "  Restore code   : rm -rf /opt/rr3 && tar -xzf ${BACKUP_DIR}/app.tar.gz -C /opt"
+    [[ -n "${BACKUP_DIR:-}" && -d "${BACKUP_DIR}/config" ]] && \
+        echo "  Restore config : cp ${BACKUP_DIR}/config/*.php ${CONFIG_DIR}/"
+}
 
 # ----------------------------------------------------------------------------
 # Update-specific steps
@@ -61,6 +80,13 @@ password=${DB_PASS}
 host=127.0.0.1
 EOF
     mysqldump --defaults-extra-file="$dbcnf" "$DB_NAME" | gzip >"$BACKUP_DIR/db.sql.gz"
+
+    # Record the table count now, while we know for certain we're looking at
+    # the right database - step_verify_db compares against this later to
+    # make sure the post-update config didn't end up pointing somewhere else.
+    mysql --defaults-extra-file="$dbcnf" -N -B \
+        -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" \
+        >"$BACKUP_DIR/.table_count" 2>/dev/null || echo 0 >"$BACKUP_DIR/.table_count"
     rm -f "$dbcnf"
 
     cp -a "$CONFIG_DIR/." "$BACKUP_DIR/config/"
@@ -106,6 +132,50 @@ step_apply_config() {
     # these aren't affected by config schema changes between releases.
     if [[ -d "$BACKUP_DIR/images" ]]; then
         cp -a "$BACKUP_DIR/images/." /opt/rr3/images/ 2>/dev/null
+    fi
+}
+
+step_verify_db() {
+    # Neither config path is supposed to touch the live database - "new"
+    # regenerates database.php but patches it with the same DB_NAME/DB_USER
+    # detected before the update, so it should point at the exact same,
+    # already-populated database. Don't just trust that: connect with
+    # whatever ended up on disk and confirm it's actually the same database
+    # before doctrine touches its schema.
+    local live_name live_user live_pass
+    live_name=$(grep -oP "\['database'\]\s*=\s*'\K[^']+" "$CONFIG_DIR/database.php" || true)
+    live_user=$(grep -oP "\['username'\]\s*=\s*'\K[^']+" "$CONFIG_DIR/database.php" || true)
+    live_pass=$(grep -oP "\['password'\]\s*=\s*'\K[^']+" "$CONFIG_DIR/database.php" || true)
+
+    if [[ "$live_name" != "$DB_NAME" || "$live_user" != "$DB_USER" ]]; then
+        echo "The applied config points at '${live_user}'@'${live_name}', but the pre-update database was '${DB_USER}'@'${DB_NAME}'."
+        return 1
+    fi
+
+    local dbcnf
+    dbcnf=$(mktemp)
+    chmod 600 "$dbcnf"
+    cat >"$dbcnf" <<EOF
+[client]
+user=${live_user}
+password=${live_pass}
+host=127.0.0.1
+EOF
+    local post_count pre_count rc=0
+    post_count=$(mysql --defaults-extra-file="$dbcnf" -N -B \
+        -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${live_name}';" 2>/dev/null) || rc=1
+    rm -f "$dbcnf"
+
+    if [[ $rc -ne 0 || -z "$post_count" ]]; then
+        echo "Could not connect to '${live_name}' with the applied config's credentials."
+        return 1
+    fi
+
+    pre_count=$(cat "$BACKUP_DIR/.table_count" 2>/dev/null || echo 0)
+    echo "Database '${live_name}': ${pre_count} table(s) before the update, ${post_count} now."
+    if [[ "$post_count" -lt "$pre_count" ]]; then
+        echo "Table count dropped after applying the config - this looks like the wrong database. Refusing to run the schema update."
+        return 1
     fi
 }
 
@@ -219,6 +289,7 @@ run_step "Back up database, config, and app code" step_backup
 run_step "Fetch latest Jagger code (fresh)"        step_install_jagger
 run_step "Apply PHP 8.4 compatibility fixes"       step_php_compat
 run_step "Apply ${CONFIG_MODE} configuration"      step_apply_config
+run_step "Verify database connection"              step_verify_db
 run_step "Update database schema (Doctrine)"       step_schema_update
 run_step "Restart Apache & verify"                 step_restart_verify
 
