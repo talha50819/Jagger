@@ -14,6 +14,7 @@
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
+  - [Quick Start (Automated)](#quick-start-automated)
   1. [Important Notes](#important-notes)
   2. [Configure the Environment](#configure-the-environment)
   3. [Configure APT Mirror](#configure-apt-mirror)
@@ -77,12 +78,33 @@
 Step-by-step walkthrough for installing Jagger by hand on Debian/Ubuntu. Make
 sure you meet the [Requirements](#requirements) above before starting.
 
+### Quick Start (Automated)
+
+Prefer not to type all of this in by hand? [`deploy.sh`](deploy.sh) runs every
+step below for you on a fresh Debian 13 / Ubuntu 24.04+ server. On the target
+server, as root:
+
+```bash
+git clone https://github.com/talha50819/Jagger.git
+cd Jagger
+chmod +x deploy.sh
+sudo ./deploy.sh
+```
+
+It auto-detects the server's IP/OS, asks you for the handful of values it
+can't guess (FQDN, admin email, DB credentials — or press Enter to
+auto-generate a strong password), then runs the full deployment with a
+progress bar and per-step timing.
+
 > [!TIP]
-> Prefer not to type all of this in by hand? [`deploy.sh`](deploy.sh) automates
-> every step below on a fresh Debian 13 / Ubuntu 24.04+ host: it auto-detects
-> the server's IP/OS, asks you for the handful of values it can't guess (FQDN,
-> admin email, DB credentials), then runs the full deployment with a progress
-> bar and per-step timing. Run it as root with `sudo ./deploy.sh`.
+> For a non-interactive/scripted run, pass `-y` and set the `JAGGER_*`
+> environment variables described at the top of [`deploy.sh`](deploy.sh)
+> (e.g. `JAGGER_FQDN`, `JAGGER_ADMIN_EMAIL`).
+
+Skip ahead to [Documentation](#documentation) once it finishes, or keep
+reading below to run every step manually instead.
+
+---
 
 ### Important Notes
 
