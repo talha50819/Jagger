@@ -553,7 +553,12 @@ step_install_jagger() {
     (cd /opt/rr3/application && composer install --no-interaction)
 
     cp /opt/codeigniter/index.php /opt/rr3/index.php
-    sed -i "s#^\(\s*\)\\\$system_path\s*=.*;#\1\\\$system_path = '/opt/codeigniter/system';#" /opt/rr3/index.php
+    # NOTE: index.php reassigns $system_path a second time inside its own
+    # realpath() normalization block (e.g. "$system_path = $_temp.DIRECTORY_SEPARATOR;").
+    # Match only the literal stock default ('system') so that line isn't
+    # clobbered too - if it is, CI3's own trailing-separator gets stripped
+    # and BASEPATH ends up missing a "/" before "core/CodeIgniter.php".
+    sed -i "s#^\(\s*\)\\\$system_path\s*=\s*'system';#\1\\\$system_path = '/opt/codeigniter/system';#" /opt/rr3/index.php
 }
 
 step_jagger_db() {
@@ -700,7 +705,14 @@ step_verify() {
     local code
     code=$(curl -sk -o /dev/null -w '%{http_code}' "https://${FQDN}/rr3/" || echo "000")
     echo "HTTP status for https://${FQDN}/rr3/ => ${code}"
-    [[ "$code" != "000" ]]
+    # "000" means curl couldn't even connect; a 5xx means Apache/PHP is up
+    # but Jagger itself is fatally broken (e.g. a bad CodeIgniter bootstrap
+    # path) - both are real failures, not just "some response came back".
+    if [[ "$code" == "000" || "$code" -ge 500 ]]; then
+        echo "Jagger did not respond correctly. Check the Apache error log" \
+             "(/var/log/apache2/${FQDN}-error.log) and ${LOG_FILE}."
+        return 1
+    fi
 }
 
 step_migrate_backup() {
