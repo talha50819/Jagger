@@ -857,7 +857,12 @@ if [[ "$DEPLOY_KIND" == "migrate" ]]; then
     OLD_ENCRYPTION_KEY=$(grep -oP "encryption_key'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/config.php" || true)
     OLD_SYNCPASS=$(grep -oP "syncpass'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/config_rr.php" || true)
     OLD_LOGO_NAME=$(grep -oP "site_logo'\]\s*=\s*'\K[^']+" "$OLD_CONFIG_DIR/config_rr.php" || true)
-    OLD_ADMIN_EMAIL=$(grep -rhoP "ServerAdmin\s+\K\S+" /etc/apache2/sites-available/ 2>/dev/null | head -1 || true)
+    # Scoped to the Jagger vhost specifically (named after its FQDN, same as
+    # step_apache_http/step_finalize_vhost write) - grepping the whole
+    # sites-available/ directory can instead pick up Ubuntu's own stock
+    # "ServerAdmin webmaster@localhost" from 000-default.conf, which isn't
+    # a real address and Let's Encrypt will reject at registration time.
+    OLD_ADMIN_EMAIL=$(grep -hoP "ServerAdmin\s+\K\S+" "/etc/apache2/sites-available/${OLD_FQDN}.conf" 2>/dev/null | head -1 || true)
 
     [[ -n "$OLD_FQDN" && -n "$OLD_DB_NAME" && -n "$OLD_DB_USER" ]] \
         || die "Couldn't detect the existing install's FQDN/DB settings from its config files - is /opt/rr3 a deploy.sh-managed install?"
