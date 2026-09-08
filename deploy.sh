@@ -573,6 +573,7 @@ step_jagger_db() {
     mysql --defaults-extra-file="$MYSQL_ROOT_CNF" <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
@@ -772,7 +773,11 @@ EOF
         return 1
     fi
 
-    if [[ -f "$BACKUP_DIR/.logo_name" ]]; then
+    # Only reapply the old logo when the user chose to reuse the existing
+    # config. In "new config" mode they may have just picked a different
+    # logo via step_configure_jagger, and this would silently overwrite
+    # that choice back to the old one since restore runs after it.
+    if [[ "$MIGRATE_CONFIG_MODE" == "existing" && -f "$BACKUP_DIR/.logo_name" ]]; then
         local logo_name
         logo_name=$(cat "$BACKUP_DIR/.logo_name")
         if [[ -f "$BACKUP_DIR/$logo_name" ]]; then
